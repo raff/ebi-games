@@ -25,7 +25,25 @@ const (
 	hcount = 10
 	vcount = 4
 
+	plen   = 7
+	mcount = 3
+
 	border = 8
+)
+
+type placedCard struct {
+	card int
+	col  int
+}
+
+type placedCards []placedCard
+
+type placeStatus int
+
+const (
+	cardPlaced placeStatus = iota
+	cardMatched
+	gameLost
 )
 
 var (
@@ -34,18 +52,21 @@ var (
 
 	tiles []*ebiten.Image
 
-	borderColor = color.NRGBA{80, 80, 80, 255}
-	selectColor = color.NRGBA{255, 255, 0, 255}
+	background  = color.NRGBA{80, 80, 80, 255}
+	borderColor = color.NRGBA{127, 127, 127, 255}
+	placeColor  = color.NRGBA{100, 140, 100, 255}
 
-	canvas *ebiten.Image
+	canvas      *ebiten.Image
+	placeholder *ebiten.Image
+
+	placeOp = &ebiten.DrawImageOptions{}
 
 	tw, th int // game tile width, height
 	gw, gh int // number of horizontal and vertical tiles in game
 	ww, wh int // window width and height
 
-	cards [][]int // gw columns of gh tiles (card indices)
-
-	mcount = 2
+	cards  [][]int // gw columns of gh tiles (card indices)
+	placed placedCards
 
 	curmatches   = 0
 	maxmatches   = 0
@@ -55,9 +76,11 @@ var (
 	mpoints = 1
 	spoints = 1
 	score   = 0
+
+	autoplay = false
 )
 
-func initGame() {
+func initGame(clear bool) {
 	var lcards []int
 
 	if len(tiles) == 0 {
@@ -103,15 +126,35 @@ func initGame() {
 		gw, gh = factors(len(lcards))
 		ww, wh = gw*tw, (gh+1)*th/2
 
+		// add space for tiles placeholder
+		wh += border + border + th + border
+
 		cards = make([][]int, gw)
 
 		for i := range cards {
 			cards[i] = make([]int, gh)
 		}
+
+		placeholder = ebiten.NewImage(tw*plen, th)
+		placeholder.Fill(placeColor)
+
+		placeOp.GeoM.Translate(float64(ww-placeholder.Bounds().Dx())/2, float64(wh-th-border-border))
+
+		placed = make([]placedCard, 0, plen)
+
+		canvas = ebiten.NewImage(ww, wh)
 	}
 
 	cols := 0
 	ci := -1
+
+	if clear {
+		for _, p := range placed {
+			cards[p.col] = append(cards[p.col], p.card)
+		}
+
+		placed = placed[:0]
+	}
 
 	if len(lcards) == 0 {
 		for i, col := range cards {
@@ -150,12 +193,42 @@ func initGame() {
 		}
 	}
 
-	canvas = ebiten.NewImage(ww, wh)
 	drawCards(nil)
 }
 
+func placeCard(x, y, c int) placeStatus {
+	placed = append(placed, placedCard{card: c, col: x})
+
+	sort.Slice(placed, func(i, j int) bool {
+		return placed[i].card <= placed[j].card
+	})
+
+	match := -1
+	count := 0
+
+	for i, pc := range placed {
+		if pc.card == match {
+			count++
+
+			if count == mcount {
+				placed = append(placed[:i-mcount+1], placed[i+1:]...)
+				return cardMatched
+			}
+		} else {
+			match = pc.card
+			count = 1
+		}
+	}
+
+	if len(placed) == plen {
+		return gameLost
+	}
+
+	return cardPlaced
+}
+
 func drawCards(revs map[int]bool) {
-	canvas.Fill(borderColor)
+	canvas.Fill(background)
 
 	for x, col := range cards {
 		for y, card := range col {
@@ -170,6 +243,19 @@ func drawCards(revs map[int]bool) {
 			op.GeoM.Translate(float64(x*tw), float64(y*th/2))
 			canvas.DrawImage(im, op)
 		}
+	}
+
+	canvas.DrawImage(placeholder, placeOp)
+
+	for i, p := range placed {
+		im := tiles[p.card]
+
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(
+			float64(((ww-placeholder.Bounds().Dx())/2)+(i*tw)),
+			float64(wh-th-border-border))
+
+		canvas.DrawImage(im, op)
 	}
 }
 
@@ -230,7 +316,7 @@ func getScore() string {
 func main() {
 	rand.Seed(time.Now().Unix())
 
-	initGame()
+	initGame(true)
 
 	ebiten.SetWindowTitle("Tris")
 
@@ -276,33 +362,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(canvas, op)
 }
 
-var (
-	matches  map[int]bool
-	match    = -1
-	autoplay = false
-)
-
 func (g *Game) Update() error {
 	playCard := func(x, y int) error {
 		x, y, card := playable(x, y)
-		ci := gameIndex(x, y)
+		cards[x] = cards[x][:y]
 
-		if match != card {
-			match = card
-			matches = map[int]bool{ci: true}
-		} else {
-			matches[ci] = true
-		}
+		status := placeCard(x, y, card)
 
-		if len(matches) == mcount {
-			for gi, _ := range matches {
-				x, y := gameCoord(gi)
-				cards[x] = cards[x][:y]
-			}
-
-			matches = nil
-			match = -1
-
+		switch status {
+		case cardMatched:
 			curmatches++
 			totalmatches++
 			score += spoints
@@ -317,17 +385,20 @@ func (g *Game) Update() error {
 				lc += len(col)
 			}
 
-			if lc == 0 {
-				return fmt.Errorf("game over")
+			if lc == 0 && len(placed) == 0 {
+				return fmt.Errorf("winner")
 			}
+
+		case gameLost:
+			return fmt.Errorf("loser")
 		}
 
-		drawCards(matches)
+		drawCards(nil)
 		return nil
 	}
 
 	shuffle := func() {
-		initGame()
+		initGame(false)
 
 		shuffles++
 		mpoints += curmatches
@@ -336,7 +407,6 @@ func (g *Game) Update() error {
 			spoints = 1
 		}
 
-		match = -1
 		curmatches = 0
 		ebiten.SetWindowTitle(getScore())
 	}
