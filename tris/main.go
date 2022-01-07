@@ -78,6 +78,8 @@ var (
 	score   = 0
 
 	autoplay = false
+
+	selected = -1
 )
 
 func initGame(clear bool) {
@@ -239,6 +241,9 @@ func drawCards(revs map[int]bool) {
 			if revs != nil && revs[ci] {
 				op.ColorM.Scale(0.5, 0.5, 0.5, 1)
 			}
+			if selected == x && y == len(col)-1 {
+				op.ColorM.Scale(0.5, 0.5, 0.5, 1)
+			}
 
 			op.GeoM.Translate(float64(x*tw), float64(y*th/2))
 			canvas.DrawImage(im, op)
@@ -283,6 +288,23 @@ func playable(x, y int) (int, int, int) {
 	}
 
 	return -1, -1, -1
+}
+
+func nextCol(n int) int {
+	for {
+		selected += n
+		if selected < 0 {
+			selected = gw - 1
+		} else if selected >= gw {
+			selected = 0
+		}
+
+		if len(cards[selected]) > 0 {
+			return selected
+		}
+	}
+
+	return -1
 }
 
 func factors(n int) (int, int) {
@@ -416,7 +438,26 @@ func (g *Game) Update() error {
 		autoplay = !autoplay
 		fmt.Println("autoplay:", autoplay)
 
+	case inpututil.IsKeyJustPressed(ebiten.KeyLeft):
+		nextCol(-1)
+		drawCards(nil)
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyRight):
+		nextCol(+1)
+		drawCards(nil)
+
+	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
+		if selected >= 0 {
+			x, y := selected, len(cards[selected])
+			selected = -1
+
+			if err := playCard(x, y); err != nil {
+				return err
+			}
+		}
+
 	case autoplay:
+		selected = -1
 		playcards := make([]struct{ x, y, c int }, len(cards))
 
 		for x, col := range cards {
@@ -460,11 +501,14 @@ func (g *Game) Update() error {
 		return fmt.Errorf("quit")
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR):
+		selected = -1
 		shuffle()
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 		x, y := ebiten.CursorPosition()
 		if x, y, c := cardIndex(x, y); c >= 0 {
+			selected = -1
+
 			if err := playCard(x, y); err != nil {
 				return err
 			}
