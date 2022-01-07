@@ -449,7 +449,9 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
 		if selected >= 0 {
 			x, y := selected, len(cards[selected])
-			selected = -1
+			if y == 0 {
+				selected = -1
+			}
 
 			if err := playCard(x, y); err != nil {
 				return err
@@ -507,7 +509,9 @@ func (g *Game) Update() error {
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 		x, y := ebiten.CursorPosition()
 		if x, y, c := cardIndex(x, y); c >= 0 {
-			selected = -1
+			if y == 0 {
+				selected = -1
+			}
 
 			if err := playCard(x, y); err != nil {
 				return err
