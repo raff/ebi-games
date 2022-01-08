@@ -54,7 +54,7 @@ var (
 
 	background  = color.NRGBA{80, 80, 80, 255}
 	borderColor = color.NRGBA{127, 127, 127, 255}
-	placeColor  = color.NRGBA{100, 140, 100, 255}
+	placeColor  = color.NRGBA{100, 100, 140, 255}
 
 	canvas      *ebiten.Image
 	placeholder *ebiten.Image
