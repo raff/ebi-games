@@ -25,18 +25,18 @@ const (
 	hcount = 10
 	vcount = 4
 
-	plen   = 7
-	mcount = 3
+	mcount    = 3
+	drawerLen = 7
 
 	border = 8
 )
 
-type placedCard struct {
+type drawerCard struct {
 	card int
 	col  int
 }
 
-type placedCards []placedCard
+type drawerCards []drawerCard
 
 type placeStatus int
 
@@ -56,17 +56,17 @@ var (
 	borderColor = color.NRGBA{127, 127, 127, 255}
 	placeColor  = color.NRGBA{100, 100, 140, 255}
 
-	canvas      *ebiten.Image
-	placeholder *ebiten.Image
+	canvas   *ebiten.Image
+	drawerbg *ebiten.Image
 
-	placeOp = &ebiten.DrawImageOptions{}
+	drawerOp = &ebiten.DrawImageOptions{}
 
 	tw, th int // game tile width, height
 	gw, gh int // number of horizontal and vertical tiles in game
 	ww, wh int // window width and height
 
 	cards  [][]int // gw columns of gh tiles (card indices)
-	placed placedCards
+	drawer drawerCards
 
 	curmatches   = 0
 	maxmatches   = 0
@@ -128,7 +128,7 @@ func initGame(clear bool) {
 		gw, gh = factors(len(lcards))
 		ww, wh = gw*tw, (gh+1)*th/2
 
-		// add space for tiles placeholder
+		// add space for tiles drawer
 		wh += border + border + th + border
 
 		cards = make([][]int, gw)
@@ -137,12 +137,12 @@ func initGame(clear bool) {
 			cards[i] = make([]int, gh)
 		}
 
-		placeholder = ebiten.NewImage(tw*plen, th)
-		placeholder.Fill(placeColor)
+		drawerbg = ebiten.NewImage(tw*drawerLen, th)
+		drawerbg.Fill(placeColor)
 
-		placeOp.GeoM.Translate(float64(ww-placeholder.Bounds().Dx())/2, float64(wh-th-border-border))
+		drawerOp.GeoM.Translate(float64(ww-drawerbg.Bounds().Dx())/2, float64(wh-th-border-border))
 
-		placed = make([]placedCard, 0, plen)
+		drawer = make(drawerCards, 0, drawerLen)
 
 		canvas = ebiten.NewImage(ww, wh)
 	}
@@ -151,11 +151,11 @@ func initGame(clear bool) {
 	ci := -1
 
 	if clear {
-		for _, p := range placed {
-			cards[p.col] = append(cards[p.col], p.card)
+		for _, c := range drawer {
+			cards[c.col] = append(cards[c.col], c.card)
 		}
 
-		placed = placed[:0]
+		drawer = drawer[:0]
 	}
 
 	if len(lcards) == 0 {
@@ -199,21 +199,21 @@ func initGame(clear bool) {
 }
 
 func placeCard(x, y, c int) placeStatus {
-	placed = append(placed, placedCard{card: c, col: x})
+	drawer = append(drawer, drawerCard{card: c, col: x})
 
-	sort.Slice(placed, func(i, j int) bool {
-		return placed[i].card <= placed[j].card
+	sort.Slice(drawer, func(i, j int) bool {
+		return drawer[i].card <= drawer[j].card
 	})
 
 	match := -1
 	count := 0
 
-	for i, pc := range placed {
+	for i, pc := range drawer {
 		if pc.card == match {
 			count++
 
 			if count == mcount {
-				placed = append(placed[:i-mcount+1], placed[i+1:]...)
+				drawer = append(drawer[:i-mcount+1], drawer[i+1:]...)
 				return cardMatched
 			}
 		} else {
@@ -222,7 +222,7 @@ func placeCard(x, y, c int) placeStatus {
 		}
 	}
 
-	if len(placed) == plen {
+	if len(drawer) == drawerLen {
 		return gameLost
 	}
 
@@ -250,14 +250,14 @@ func drawCards(revs map[int]bool) {
 		}
 	}
 
-	canvas.DrawImage(placeholder, placeOp)
+	canvas.DrawImage(drawerbg, drawerOp)
 
-	for i, p := range placed {
+	for i, p := range drawer {
 		im := tiles[p.card]
 
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(
-			float64(((ww-placeholder.Bounds().Dx())/2)+(i*tw)),
+			float64(((ww-drawerbg.Bounds().Dx())/2)+(i*tw)),
 			float64(wh-th-border-border))
 
 		canvas.DrawImage(im, op)
@@ -407,7 +407,7 @@ func (g *Game) Update() error {
 				lc += len(col)
 			}
 
-			if lc == 0 && len(placed) == 0 {
+			if lc == 0 && len(drawer) == 0 {
 				return fmt.Errorf("winner")
 			}
 
