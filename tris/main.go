@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -80,6 +81,8 @@ var (
 	autoplay = false
 
 	selected = -1
+
+	level = 3
 )
 
 func initGame(clear bool) {
@@ -98,7 +101,24 @@ func initGame(clear bool) {
 		tw = hsize / 2
 		th = vsize / 2
 
-		//card_loop:
+		var copies, cardscount int
+
+		switch level {
+		case 1:
+			cardscount = 10
+			copies = 24
+		case 2:
+			cardscount = 20
+			copies = 12
+		case 3:
+			cardscount = 26
+			copies = 9
+		case 4:
+			cardscount = 40
+			copies = 6
+		}
+
+	card_loop:
 		for v, y := 0, 0; v < vcount; v++ {
 			for h, x := 0, 0; h < hcount; h++ {
 				card := v*hcount + h
@@ -112,14 +132,16 @@ func initGame(clear bool) {
 				tile.DrawImage(ebiten.NewImageFromImage(im), op)
 				tiles = append(tiles, tile)
 
-				lcards = append(lcards, card)
-				lcards = append(lcards, card)
-				lcards = append(lcards, card)
-				lcards = append(lcards, card)
-				lcards = append(lcards, card)
-				lcards = append(lcards, card)
+				for c := 0; c < copies; c++ {
+					lcards = append(lcards, card)
+				}
 
 				x += hsize
+
+				cardscount--
+				if cardscount == 0 {
+					break card_loop
+				}
 			}
 
 			y += vsize
@@ -336,7 +358,16 @@ func getScore() string {
 }
 
 func main() {
+	flag.IntVar(&level, "level", level, "difficulty level (1 to 4)")
+	flag.Parse()
+
 	rand.Seed(time.Now().Unix())
+
+	if level < 1 {
+		level = 1
+	} else if level > 4 {
+		level = 4
+	}
 
 	initGame(true)
 
