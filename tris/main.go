@@ -88,6 +88,7 @@ var (
 func initGame(clear bool) {
 	var lcards []int
 
+	// load tiles from tile file
 	if len(tiles) == 0 {
 		img, err := png.Decode(bytes.NewBuffer(pngTiles))
 		if err != nil {
@@ -101,6 +102,30 @@ func initGame(clear bool) {
 		tw = hsize / 2
 		th = vsize / 2
 
+		fmt.Println("hcount", hcount, "vcount", vcount)
+
+		for v, y := 0, 0; v < vcount; v++ {
+			for h, x := 0, 0; h < hcount; h++ {
+				fmt.Println("h", h, "x", x)
+
+				tile := ebiten.NewImage(tw, th)
+				tile.Fill(borderColor)
+				im := imaging.Crop(img, image.Rect(x, y, x+hsize, y+vsize))
+				im = imaging.Resize(im, tw-border, th-border-border, imaging.Box)
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(border, border)
+				tile.DrawImage(ebiten.NewImageFromImage(im), op)
+				tiles = append(tiles, tile)
+
+				x += hsize
+			}
+
+			y += vsize
+		}
+	}
+
+	// initialize cards
+	if len(cards) == 0 {
 		var copies, cardscount int
 
 		switch level {
@@ -118,33 +143,10 @@ func initGame(clear bool) {
 			copies = 6
 		}
 
-	card_loop:
-		for v, y := 0, 0; v < vcount; v++ {
-			for h, x := 0, 0; h < hcount; h++ {
-				card := v*hcount + h
-
-				tile := ebiten.NewImage(tw, th)
-				tile.Fill(borderColor)
-				im := imaging.Crop(img, image.Rect(x, y, x+hsize, y+vsize))
-				im = imaging.Resize(im, tw-border, th-border-border, imaging.Box)
-				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(border, border)
-				tile.DrawImage(ebiten.NewImageFromImage(im), op)
-				tiles = append(tiles, tile)
-
-				for c := 0; c < copies; c++ {
-					lcards = append(lcards, card)
-				}
-
-				x += hsize
-
-				cardscount--
-				if cardscount == 0 {
-					break card_loop
-				}
+		for card := 0; card < cardscount; card++ {
+			for c := 0; c < copies; c++ {
+				lcards = append(lcards, card)
 			}
-
-			y += vsize
 		}
 
 		gw, gh = factors(len(lcards))
@@ -158,7 +160,9 @@ func initGame(clear bool) {
 		for i := range cards {
 			cards[i] = make([]int, gh)
 		}
+	}
 
+	if canvas == nil {
 		drawerbg = ebiten.NewImage(tw*drawerLen, th)
 		drawerbg.Fill(placeColor)
 
@@ -353,7 +357,7 @@ func max(a, b int) int {
 }
 
 func getScore() string {
-	return fmt.Sprintf("Tris - matches:%v  max.matches:%v  total:%v  shuffles:%v  score:%v  (%v)",
+	return fmt.Sprintf("matches:%v  max.matches:%v  total:%v  shuffles:%v  score:%v  (%v)",
 		curmatches, maxmatches, totalmatches, shuffles, score, spoints)
 }
 
@@ -386,11 +390,14 @@ func main() {
 
 	ebiten.SetWindowSize(w, h)
 
-	if err := ebiten.RunGame(&Game{}); err != nil {
-		log.Fatal(err)
+	err := ebiten.RunGame(&Game{})
+
+	title := "Tris"
+	if err != nil {
+		title = err.Error()
 	}
 
-	fmt.Println(getScore())
+	fmt.Printf("%v / %v\n", title, getScore())
 }
 
 func gameIndex(x, y int) int {
@@ -430,7 +437,7 @@ func (g *Game) Update() error {
 			if curmatches > maxmatches {
 				maxmatches = curmatches
 			}
-			ebiten.SetWindowTitle(getScore())
+			ebiten.SetWindowTitle("Tris - " + getScore())
 
 			lc := 0
 
@@ -461,7 +468,7 @@ func (g *Game) Update() error {
 		}
 
 		curmatches = 0
-		ebiten.SetWindowTitle(getScore())
+		ebiten.SetWindowTitle("Tris - " + getScore())
 	}
 
 	switch {
@@ -534,6 +541,12 @@ func (g *Game) Update() error {
 		return fmt.Errorf("quit")
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR):
+		cards = nil
+		drawer = drawer[:0]
+		selected = -1
+		initGame(true)
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyS):
 		selected = -1
 		shuffle()
 
