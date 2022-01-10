@@ -102,12 +102,8 @@ func initGame(clear bool) {
 		tw = hsize / 2
 		th = vsize / 2
 
-		fmt.Println("hcount", hcount, "vcount", vcount)
-
 		for v, y := 0, 0; v < vcount; v++ {
 			for h, x := 0, 0; h < hcount; h++ {
-				fmt.Println("h", h, "x", x)
-
 				tile := ebiten.NewImage(tw, th)
 				tile.Fill(borderColor)
 				im := imaging.Crop(img, image.Rect(x, y, x+hsize, y+vsize))
@@ -498,38 +494,36 @@ func (g *Game) Update() error {
 
 	case autoplay:
 		selected = -1
-		playcards := make([]struct{ x, y, c int }, len(cards))
 
-		for x, col := range cards {
-			y := len(col) - 1
-			_, _, c := playable(x, y)
-			playcards[x] = struct{ x, y, c int }{x, y, c}
-		}
+		matches := map[int]int{}
 
-		sort.Slice(playcards, func(i, j int) bool {
-			return playcards[i].c >= playcards[j].c
-		})
-
-		if playcards[0].c == -1 {
-			fmt.Println("no valid cards")
-			autoplay = false
-			return fmt.Errorf("no valid cards")
+		for _, c := range drawer {
+			matches[c.card]++
 		}
 
 		matched := false
 
-		for i := 0; i < len(playcards)-1; i++ {
-			pc0 := playcards[i+0]
-			pc1 := playcards[i+1]
+		for x, col := range cards {
+			if len(col) == 0 {
+				continue // empty column
+			}
 
-			if pc0.c >= 0 && pc0.c == pc1.c {
-				playCard(pc0.x, pc0.y)
-				if err := playCard(pc1.x, pc1.y); err != nil {
+			y := len(col) - 1
+			c := col[y]
+
+			if _, ok := matches[c]; ok || len(matches) == 0 {
+				matches[c] += 1
+
+				if matches[c] < mcount && len(drawer) >= drawerLen-1 {
+					matched = false
+					break
+				}
+
+				if err := playCard(x, y); err != nil {
 					return err
 				}
 
 				matched = true
-				break
 			}
 		}
 
