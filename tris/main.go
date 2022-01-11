@@ -535,10 +535,19 @@ func (g *Game) Update() error {
 		return fmt.Errorf("quit")
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR):
+		curmatches = 0
+		maxmatches = 0
+		totalmatches = 0
+		shuffles = 0
+		mpoints = 1
+		spoints = 1
+		score = 0
+		selected = -1
+
 		cards = nil
 		drawer = drawer[:0]
-		selected = -1
 		initGame(true)
+		ebiten.SetWindowTitle("Tris")
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyS):
 		selected = -1
