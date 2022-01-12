@@ -37,6 +37,10 @@ type drawerCard struct {
 	col  int
 }
 
+type coords struct {
+	x, y int
+}
+
 type drawerCards []drawerCard
 
 type placeStatus int
@@ -85,7 +89,7 @@ var (
 	level = 3
 )
 
-func initGame(clear bool) {
+func initGame(clear bool) int {
 	var lcards []int
 
 	// load tiles from tile file
@@ -218,6 +222,7 @@ func initGame(clear bool) {
 	}
 
 	drawCards(nil)
+	return len(lcards)
 }
 
 func placeCard(x, y, c int) placeStatus {
@@ -284,6 +289,8 @@ func drawCards(revs map[int]bool) {
 
 		canvas.DrawImage(im, op)
 	}
+
+	ebiten.ScheduleFrame()
 }
 
 func cardIndex(x, y int) (int, int, int) {
@@ -385,6 +392,7 @@ func main() {
 	}
 
 	ebiten.SetWindowSize(w, h)
+	ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
 
 	err := ebiten.RunGame(&Game{})
 
@@ -419,7 +427,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Update() error {
-	playCard := func(x, y int) error {
+	playCard := func(x, y int, pause bool) error {
 		x, y, card := playable(x, y)
 		cards[x] = cards[x][:y]
 
@@ -450,6 +458,10 @@ func (g *Game) Update() error {
 		}
 
 		drawCards(nil)
+		if pause {
+			time.Sleep(100 * time.Millisecond)
+		}
+
 		return nil
 	}
 
@@ -487,7 +499,7 @@ func (g *Game) Update() error {
 				selected = -1
 			}
 
-			if err := playCard(x, y); err != nil {
+			if err := playCard(x, y, false); err != nil {
 				return err
 			}
 		}
@@ -495,41 +507,91 @@ func (g *Game) Update() error {
 	case autoplay:
 		selected = -1
 
-		matches := map[int]int{}
+		matches := map[int]int{}        // card/count (cards in drawer)
+		playables := map[int][]coords{} // card/list of card positions
 
+		// get playable cards
+		for x, col := range cards {
+			y := len(col) - 1
+
+			if y < 0 {
+				continue
+			}
+
+			c := col[y]
+			playables[c] = append(playables[c], coords{x, y})
+		}
+
+		// get cards in drawer
 		for _, c := range drawer {
 			matches[c.card]++
 		}
 
-		matched := false
+		// if we can fit a full set and we do have full sets
+		// play them
+		if drawerLen-len(drawer) >= mcount {
+			for _, cards := range playables {
+				if len(cards) >= mcount {
+					for i := 0; i < mcount; i++ {
+						cc := cards[i]
 
-		for x, col := range cards {
-			if len(col) == 0 {
-				continue // empty column
-			}
+						if err := playCard(cc.x, cc.y, true); err != nil {
+							return err
+						}
+					}
 
-			y := len(col) - 1
-			c := col[y]
-
-			if _, ok := matches[c]; ok || len(matches) == 0 {
-				matches[c] += 1
-
-				if matches[c] < mcount && len(drawer) >= drawerLen-1 {
-					matched = false
-					break
+					return nil
 				}
-
-				if err := playCard(x, y); err != nil {
-					return err
-				}
-
-				matched = true
 			}
 		}
 
-		if !matched {
-			shuffle()
+		// if we can complete some matches in the drawer, do it
+		for c, count := range matches {
+			if count == mcount-1 && len(playables[c]) > 1 {
+				cc := playables[c][0]
+
+				return playCard(cc.x, cc.y, true)
+			}
 		}
+
+		// if we can match some of the existing cards, play them
+		if len(drawer) > 0 {
+			for c, cards := range playables {
+				if _, ok := matches[c]; ok {
+					dl := len(drawer)    // cards in drawer
+					dr := drawerLen - dl // remaining slots
+					cl := len(cards)     // matching playable cards
+					if cl > dr {
+						cl = dr
+					}
+
+					if matches[c]+cl < mcount { // can't do a full match
+						// make sure we don't fill the drawer
+						if dr <= 1 {
+							break
+						}
+					}
+
+					for i := 0; i < cl; i++ {
+						cc := cards[i]
+						return playCard(cc.x, cc.y, true)
+					}
+				}
+			}
+		}
+
+		// if there is space, pick a card and play it
+		if len(drawer) < drawerLen-2 {
+			for _, cards := range playables {
+				if len(cards) > 0 {
+					cc := cards[0]
+					return playCard(cc.x, cc.y, true)
+				}
+			}
+		}
+
+		// no more matches
+		shuffle()
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX):
 		return fmt.Errorf("quit")
@@ -551,7 +613,7 @@ func (g *Game) Update() error {
 				selected = -1
 			}
 
-			if err := playCard(x, y); err != nil {
+			if err := playCard(x, y, false); err != nil {
 				return err
 			}
 		}
