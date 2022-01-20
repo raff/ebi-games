@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/disintegration/imaging v1.6.2
-	github.com/hajimehoshi/ebiten/v2 v2.2.3
+	github.com/hajimehoshi/ebiten/v2 v2.2.4
 )
 
 require (
