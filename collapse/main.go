@@ -3,13 +3,8 @@ package main
 import (
 	"fmt"
 	"image/color"
-	"log"
 	"math/rand"
 	"time"
-
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/gofont/gobold"
-	"golang.org/x/image/font/opentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -33,10 +28,7 @@ var (
 		{255, 0, 255, 255},
 	}
 
-	canvas *ebiten.Image
-	noop   = &ebiten.DrawImageOptions{}
-
-	ffont font.Face
+	noop = &ebiten.DrawImageOptions{}
 
 	tw, th int // game tile width, height
 	ww, wh int // window width and height
@@ -51,85 +43,83 @@ func min(a, b int) int {
 	return b
 }
 
-func initCanvas(w, h int) (int, int) {
+func main() {
+	rand.Seed(time.Now().Unix())
+
+	g := &Game{}
+
+	ww, wh = g.init(ebiten.ScreenSizeInFullscreen())
+
+	ebiten.SetWindowTitle("Block Collapse")
+	ebiten.SetWindowSize(ww, wh)
+	ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
+	ebiten.RunGame(g)
+}
+
+type Game struct {
+	blocks [][]int
+	counts [][]int
+
+	canvas *ebiten.Image
+}
+
+func (g *Game) init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
 		ww, wh = w/2, h/2
 
 		ww = min(ww, wh)
 		wh = ww
 
-		//tw = (ww - border) / hcount
-		//th = (wh - border) / vcount
 		tw = ww / hcount
 		th = wh / vcount
 
-                ww += border
+		ww += border
 		wh += border
 
-		//bw = (ww - (tw * hcount)) / 2
-		//bh = (wh - (th * vcount)) / 2
+		g.canvas = ebiten.NewImage(ww, wh)
+		g.canvas.Fill(background)
 
-		canvas = ebiten.NewImage(ww, wh)
-		canvas.Fill(background)
+		g.blocks = make([][]int, vcount)
 
-		tt, err := opentype.Parse(gobold.TTF)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		const dpi = 72
-		ffont, err = opentype.NewFace(tt, &opentype.FaceOptions{
-			Size:    48,
-			DPI:     dpi,
-			Hinting: font.HintingFull,
-		})
-		if err != nil {
-			log.Fatal(err)
+		for i := range g.blocks {
+			g.blocks[i] = make([]int, hcount)
 		}
 	}
 
-	for y := 0; y < vcount+1; y++ {
+	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
-			tile := ebiten.NewImage(tw-border, th-border)
-			color := colors[rand.Intn(len(colors))]
-
-			//fmt.Println(x,y, color)
-			tile.Fill(color)
-
-			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(x*tw+border+bw), float64(y*th+border+bh))
-			canvas.DrawImage(tile, op)
+			g.blocks[y][x] = rand.Intn(len(colors))
 		}
 	}
 
 	return ww, wh
 }
-
-func main() {
-	rand.Seed(time.Now().Unix())
-
-	ww, wh = initCanvas(ebiten.ScreenSizeInFullscreen())
-
-	ebiten.SetWindowTitle("Block Collapse")
-	ebiten.SetWindowSize(ww, wh)
-	ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
-	ebiten.RunGame(&Game{})
-}
-
-type Game struct{}
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return ww, wh
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.DrawImage(canvas, noop)
+	tile := ebiten.NewImage(tw-border, th-border)
+
+	for y := 0; y < vcount; y++ {
+		for x := 0; x < hcount; x++ {
+			color := colors[g.blocks[y][x]]
+			tile.Fill(color)
+
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64(x*tw+border+bw), float64(y*th+border+bh))
+			g.canvas.DrawImage(tile, op)
+		}
+	}
+
+	screen.DrawImage(g.canvas, noop)
 }
 
 func (g *Game) Update() error {
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyR):
-		initCanvas(0, 0)
+		g.init(0, 0)
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX):
 		return fmt.Errorf("quit")
