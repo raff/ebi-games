@@ -15,6 +15,8 @@ const (
 	hcount = 20
 	vcount = 20
 	border = 4
+
+	visited = -1
 )
 
 var (
@@ -55,6 +57,10 @@ func main() {
 	ebiten.SetWindowSize(ww, wh)
 	ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
 	ebiten.RunGame(g)
+}
+
+type Point struct {
+	x, y int
 }
 
 type Game struct {
@@ -98,6 +104,32 @@ func (g *Game) Coords(x, y int) (int, int) {
 	return x / g.tw, y / g.th
 }
 
+func (g *Game) Connected(x, y int) []Point {
+	v := g.blocks.Get(x, y)
+	b := g.blocks.Clone()
+
+	l, _ := connected(b, v, x, y, nil)
+	return l
+}
+
+func connected(b matrix.Matrix[int], v, x, y int, list []Point) ([]Point, bool) {
+	if x < 0 || x >= b.Width() || y < 0 || y >= b.Height() {
+		return list, false
+	}
+
+	if b.Get(x, y) != v {
+		return list, false
+	}
+
+	b.Set(x, y, visited)
+	list = append(list, Point{x: x, y: y})
+	list, _ = connected(b, v, x-1, y, list)
+	list, _ = connected(b, v, x+1, y, list)
+	list, _ = connected(b, v, x, y-1, list)
+	list, _ = connected(b, v, x, y+1, list)
+	return list, true
+}
+
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return ww, wh
 }
@@ -129,7 +161,7 @@ func (g *Game) Update() error {
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 		x, y := g.Coords(ebiten.CursorPosition())
-		fmt.Println(x, y, g.blocks.Get(x, y))
+		fmt.Println(x, y, g.Connected(x, y))
 	}
 
 	return nil

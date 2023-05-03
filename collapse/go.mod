@@ -3,7 +3,7 @@ module github.com/raff/ebi-games/collapse
 go 1.20
 
 require (
-	github.com/gobs/matrix v0.0.0-20230503050035-ed79bc8ed189
+	github.com/gobs/matrix v0.0.2
 	github.com/hajimehoshi/ebiten/v2 v2.5.3
 )
 
