@@ -22,11 +22,12 @@ var (
 	//borderColor = color.NRGBA{160, 160, 160, 255}
 
 	colors = []color.NRGBA{
-		{255, 127, 0, 255},
-		{255, 255, 0, 255},
-		{0, 255, 0, 255},
-		{64, 64, 255, 255},
-		{255, 0, 255, 255},
+		{255, 0, 0, 255},   // red
+		{0, 255, 0, 255},   // green
+		{0, 0, 255, 255},   // blue
+		{255, 255, 0, 255}, // yellow
+		{0, 255, 255, 255}, // cyan
+		{255, 0, 255, 255}, // magenta
 	}
 
 	noop = &ebiten.DrawImageOptions{}
@@ -81,7 +82,7 @@ func (g *Game) init(w, h int) (int, int) {
 		g.canvas = ebiten.NewImage(ww, wh)
 		g.canvas.Fill(background)
 
-		g.blocks = matrix.New[int](hcount, vcount, true)
+		g.blocks = matrix.New[int](hcount, vcount, false)
 	}
 
 	for y := 0; y < vcount; y++ {
@@ -128,7 +129,7 @@ func (g *Game) Update() error {
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 		x, y := g.Coords(ebiten.CursorPosition())
-		fmt.Println(x, y)
+		fmt.Println(x, y, g.blocks.Get(x, y))
 	}
 
 	return nil
