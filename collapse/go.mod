@@ -2,10 +2,8 @@ module github.com/raff/ebi-games/bingo
 
 go 1.18
 
-replace github.com/gobs/matrix => /Users/rsena/go/src/github.com/gobs/matrix
-
 require (
-	github.com/gobs/matrix v1.0.0
+	github.com/gobs/matrix v0.0.0-20230503042854-01f2612ffcb8
 	github.com/hajimehoshi/ebiten/v2 v2.2.5
 )
 
