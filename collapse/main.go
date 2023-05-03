@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/gobs/matrix"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
@@ -30,7 +31,6 @@ var (
 
 	noop = &ebiten.DrawImageOptions{}
 
-	tw, th int // game tile width, height
 	ww, wh int // window width and height
 	bw, bh int // window border
 )
@@ -57,8 +57,10 @@ func main() {
 }
 
 type Game struct {
-	blocks [][]int
+	blocks matrix.Matrix[int]
 	counts [][]int
+
+	tw, th int // game tile width, height
 
 	canvas *ebiten.Image
 }
@@ -70,8 +72,8 @@ func (g *Game) init(w, h int) (int, int) {
 		ww = min(ww, wh)
 		wh = ww
 
-		tw = ww / hcount
-		th = wh / vcount
+		g.tw = ww / hcount
+		g.th = wh / vcount
 
 		ww += border
 		wh += border
@@ -79,20 +81,20 @@ func (g *Game) init(w, h int) (int, int) {
 		g.canvas = ebiten.NewImage(ww, wh)
 		g.canvas.Fill(background)
 
-		g.blocks = make([][]int, vcount)
-
-		for i := range g.blocks {
-			g.blocks[i] = make([]int, hcount)
-		}
+		g.blocks = matrix.New[int](hcount, vcount, true)
 	}
 
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
-			g.blocks[y][x] = rand.Intn(len(colors))
+			g.blocks.Set(x, y, rand.Intn(len(colors)))
 		}
 	}
 
 	return ww, wh
+}
+
+func (g *Game) Coords(x, y int) (int, int) {
+	return x / g.tw, y / g.th
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -100,15 +102,15 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	tile := ebiten.NewImage(tw-border, th-border)
+	tile := ebiten.NewImage(g.tw-border, g.th-border)
 
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
-			color := colors[g.blocks[y][x]]
+			color := colors[g.blocks.Get(x, y)]
 			tile.Fill(color)
 
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(x*tw+border+bw), float64(y*th+border+bh))
+			op.GeoM.Translate(float64(x*g.tw+border+bw), float64(y*g.th+border+bh))
 			g.canvas.DrawImage(tile, op)
 		}
 	}
@@ -123,6 +125,10 @@ func (g *Game) Update() error {
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX):
 		return fmt.Errorf("quit")
+
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
+		x, y := g.Coords(ebiten.CursorPosition())
+		fmt.Println(x, y)
 	}
 
 	return nil
