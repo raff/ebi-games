@@ -41,8 +41,6 @@ var (
 	}
 
 	noop = &ebiten.DrawImageOptions{}
-
-	autoplay = false
 )
 
 func main() {
@@ -51,7 +49,7 @@ func main() {
 	g := &Game{}
 
 	ebiten.SetWindowTitle(title)
-	ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
+	//ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
 	ebiten.SetWindowSize(g.Init(ebiten.ScreenSizeInFullscreen()))
 	ebiten.RunGame(g)
 }
@@ -65,11 +63,13 @@ type Game struct {
 
 	ww, wh int // window width, height
 	tw, th int // game tile width, height
-	canvas *ebiten.Image
 
 	highlight []Point
+	autoplay  bool
 
 	score int
+
+	canvas *ebiten.Image // image buffer
 }
 
 func (g *Game) Init(w, h int) (int, int) {
@@ -101,6 +101,7 @@ func (g *Game) Init(w, h int) (int, int) {
 
 	g.score = 0
 	g.highlight = nil
+	g.autoplay = false
 
 	return g.ww, g.wh
 }
@@ -259,7 +260,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) Update() error {
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyA): // (A)utoplay
-		autoplay = !autoplay
+		g.autoplay = !g.autoplay
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)estart
 		g.Init(0, 0)
@@ -288,12 +289,12 @@ func (g *Game) Update() error {
 		g.Collapse(l)
 		ebiten.SetWindowTitle(title + " - " + g.Score())
 
-	case autoplay:
+	case g.autoplay:
 		if l := g.Find(); len(l) > 0 {
 			g.Collapse(l)
 			ebiten.SetWindowTitle(title + " - " + g.Score())
 		} else {
-			autoplay = false
+			g.autoplay = false
 		}
 	}
 
