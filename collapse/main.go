@@ -54,7 +54,7 @@ func main() {
 
 	g := &Game{}
 
-	ww, wh = g.init(ebiten.ScreenSizeInFullscreen())
+	ww, wh = g.Init(ebiten.ScreenSizeInFullscreen())
 
 	ebiten.SetWindowTitle("Block Collapse")
 	ebiten.SetWindowSize(ww, wh)
@@ -75,7 +75,7 @@ type Game struct {
 	canvas *ebiten.Image
 }
 
-func (g *Game) init(w, h int) (int, int) {
+func (g *Game) Init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
 		ww, wh = w/2, h/2
 
@@ -101,6 +101,14 @@ func (g *Game) init(w, h int) (int, int) {
 	}
 
 	return ww, wh
+}
+
+func (g *Game) Print() {
+	fmt.Println("[")
+	for y := g.blocks.Height() - 1; y >= 0; y-- {
+		fmt.Println(g.blocks.Row(y))
+	}
+	fmt.Println("]")
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
@@ -154,8 +162,7 @@ func (g *Game) Collapse(l []Point) {
 		g.blocks.Set(p.x, p.y, empty)
 	}
 
-	w := g.blocks.Width()
-	h := g.blocks.Height()
+	w, h := g.blocks.Width(), g.blocks.Height()
 
 	// then collapse empty cells one column at a time
 	for x := 0; x < w; x++ {
@@ -165,7 +172,17 @@ func (g *Game) Collapse(l []Point) {
 					g.blocks.Set(x, j-1, g.blocks.Get(x, j))
 				}
 
-				g.blocks.Set(x, h-1, bg)
+				col := bg
+				if false && len(l) >= 5 {
+					col = rand.Intn(len(colors))
+				}
+
+				g.blocks.Set(x, h-1, col)
+
+				// I don't like this, but it works.
+				// This is to cover the case where there are multiple empty cells in a column
+				// (and I have been lazy and didn't want to optimize that case)
+				y = -1
 			}
 		}
 	}
@@ -202,7 +219,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) Update() error {
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyR):
-		g.init(0, 0)
+		g.Init(0, 0)
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX):
 		return fmt.Errorf("quit")
