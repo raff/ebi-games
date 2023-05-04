@@ -17,6 +17,8 @@ const (
 	vcount = 20
 	border = 4
 
+	nrefill = 5
+
 	visited = -1
 	empty   = -2
 	bg      = -3
@@ -172,17 +174,22 @@ func (g *Game) Collapse(l []Point) {
 					g.blocks.Set(x, j-1, g.blocks.Get(x, j))
 				}
 
-				col := bg
-				if false && len(l) >= 5 {
-					col = rand.Intn(len(colors))
-				}
-
-				g.blocks.Set(x, h-1, col)
+				g.blocks.Set(x, h-1, bg)
 
 				// I don't like this, but it works.
 				// This is to cover the case where there are multiple empty cells in a column
 				// (and I have been lazy and didn't want to optimize that case)
 				y = -1
+			}
+		}
+	}
+
+	if len(l) >= nrefill {
+		for y := h - 1; y >= 0; y-- {
+			for x := 0; x < w; x++ {
+				if g.blocks.Get(x, y) == bg {
+					g.blocks.Set(x, y, rand.Intn(len(colors)))
+				}
 			}
 		}
 	}
