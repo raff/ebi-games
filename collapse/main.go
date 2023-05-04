@@ -41,29 +41,16 @@ var (
 	}
 
 	noop = &ebiten.DrawImageOptions{}
-
-	ww, wh int // window width and height
-	bw, bh int // window border
 )
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
-}
 
 func main() {
 	rand.Seed(time.Now().Unix())
 
 	g := &Game{}
 
-	ww, wh = g.Init(ebiten.ScreenSizeInFullscreen())
-
 	ebiten.SetWindowTitle(title)
-	ebiten.SetWindowSize(ww, wh)
 	ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
+	ebiten.SetWindowSize(g.Init(ebiten.ScreenSizeInFullscreen()))
 	ebiten.RunGame(g)
 }
 
@@ -74,6 +61,7 @@ type Point struct {
 type Game struct {
 	blocks matrix.Matrix[int]
 
+	ww, wh int // window width, height
 	tw, th int // game tile width, height
 	canvas *ebiten.Image
 
@@ -84,18 +72,20 @@ type Game struct {
 
 func (g *Game) Init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
-		ww, wh = w/2, h/2
+		g.ww, g.wh = w/2, h/2
+		if g.ww < g.wh {
+			g.wh = g.ww
+		} else {
+			g.ww = g.wh
+		}
 
-		ww = min(ww, wh)
-		wh = ww
+		g.tw = g.ww / hcount
+		g.th = g.wh / vcount
 
-		g.tw = ww / hcount
-		g.th = wh / vcount
+		g.ww += border
+		g.wh += border
 
-		ww += border
-		wh += border
-
-		g.canvas = ebiten.NewImage(ww, wh)
+		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(background)
 
 		g.blocks = matrix.New[int](hcount, vcount, false)
@@ -110,7 +100,7 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.score = 0
 	g.highlight = nil
 
-	return ww, wh
+	return g.ww, g.wh
 }
 
 func (g *Game) Print() {
@@ -227,7 +217,7 @@ func (g *Game) Find() []Point {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return ww, wh
+	return g.ww, g.wh
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -246,7 +236,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			sx, sy := g.ScreenCoords(x, y)
 
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(sx+border+bw), float64(sy+border+bh))
+			op.GeoM.Translate(float64(sx+border), float64(sy+border))
 			g.canvas.DrawImage(tile, op)
 		}
 	}
@@ -257,7 +247,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		sx, sy := g.ScreenCoords(p.x, p.y)
 
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(sx+border+bw), float64(sy+border+bh))
+		op.GeoM.Translate(float64(sx+border), float64(sy+border))
 		g.canvas.DrawImage(tile, op)
 	}
 
@@ -268,6 +258,7 @@ func (g *Game) Update() error {
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyR):
 		g.Init(0, 0)
+		ebiten.SetWindowTitle(title)
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX):
 		return fmt.Errorf("quit")
