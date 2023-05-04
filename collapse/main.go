@@ -17,6 +17,7 @@ const (
 	vcount = 20
 	border = 4
 
+	nmatch  = 3
 	nrefill = 5
 
 	visited = -1
@@ -27,8 +28,8 @@ const (
 )
 
 var (
-	background = color.NRGBA{80, 80, 80, 255}
-	//borderColor = color.NRGBA{160, 160, 160, 255}
+	background     = color.NRGBA{80, 80, 80, 255}
+	highlightColor = color.NRGBA{240, 220, 240, 255}
 
 	colors = []color.NRGBA{
 		{255, 0, 0, 255},     // red
@@ -76,6 +77,8 @@ type Game struct {
 	tw, th int // game tile width, height
 	canvas *ebiten.Image
 
+	highlight []Point
+
 	score int
 }
 
@@ -105,6 +108,7 @@ func (g *Game) Init(w, h int) (int, int) {
 	}
 
 	g.score = 0
+	g.highlight = nil
 
 	return ww, wh
 }
@@ -205,6 +209,23 @@ func (g *Game) Collapse(l []Point) {
 	g.score += len(l)
 }
 
+func (g *Game) Find() []Point {
+	for x := 0; x < hcount; x++ {
+		for y := 0; y < vcount; y++ {
+			if g.blocks.Get(x, y) == bg {
+				continue
+			}
+
+			l := g.Connected(x, y)
+			if len(l) >= nmatch {
+				return l
+			}
+		}
+	}
+
+	return nil
+}
+
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return ww, wh
 }
@@ -230,6 +251,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
+	tile.Fill(highlightColor)
+
+	for _, p := range g.highlight {
+		sx, sy := g.ScreenCoords(p.x, p.y)
+
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(sx+border+bw), float64(sy+border+bh))
+		g.canvas.DrawImage(tile, op)
+	}
+
 	screen.DrawImage(g.canvas, noop)
 }
 
@@ -241,12 +272,20 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX):
 		return fmt.Errorf("quit")
 
+	case inpututil.IsKeyJustPressed(ebiten.KeyH):
+		if l := g.Find(); len(l) > 0 {
+			g.highlight = l
+		}
+
+	case inpututil.IsKeyJustReleased(ebiten.KeyH):
+		g.highlight = nil
+
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 		x, y := g.Coords(ebiten.CursorPosition())
 		//fmt.Println(x, y)
 
 		l := g.Connected(x, y)
-		if len(l) < 3 {
+		if len(l) < nmatch {
 			break
 		}
 
