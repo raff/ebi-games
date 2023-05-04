@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"math/rand"
+	"sort"
 	"time"
 
 	"github.com/gobs/matrix"
@@ -17,6 +18,8 @@ const (
 	border = 4
 
 	visited = -1
+	empty   = -2
+	bg      = -3
 )
 
 var (
@@ -101,7 +104,11 @@ func (g *Game) init(w, h int) (int, int) {
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
-	return x / g.tw, y / g.th
+	return x / g.tw, g.blocks.Fix(y / g.th)
+}
+
+func (g *Game) ScreenCoords(x, y int) (int, int) {
+	return x * g.tw, g.blocks.Fix(y) * g.th
 }
 
 func (g *Game) Connected(x, y int) []Point {
@@ -109,6 +116,17 @@ func (g *Game) Connected(x, y int) []Point {
 	b := g.blocks.Clone()
 
 	l, _ := connected(b, v, x, y, nil)
+
+	w := b.Width()
+
+	// sort top to bottom, right to left
+	sort.SliceStable(l, func(i, j int) bool {
+		w1 := l[i].y*w + (w - l[i].x)
+		w2 := l[j].y*w + (w - l[j].x)
+
+		return w2 < w1
+	})
+
 	return l
 }
 
@@ -130,6 +148,29 @@ func connected(b matrix.Matrix[int], v, x, y int, list []Point) ([]Point, bool) 
 	return list, true
 }
 
+func (g *Game) Collapse(l []Point) {
+	// first set to connected cells to empty
+	for _, p := range l {
+		g.blocks.Set(p.x, p.y, empty)
+	}
+
+	w := g.blocks.Width()
+	h := g.blocks.Height()
+
+	// then collapse empty cells one column at a time
+	for x := 0; x < w; x++ {
+		for y := 0; y < h; y++ {
+			if g.blocks.Get(x, y) == empty {
+				for j := y + 1; j < h; j++ {
+					g.blocks.Set(x, j-1, g.blocks.Get(x, j))
+				}
+
+				g.blocks.Set(x, h-1, bg)
+			}
+		}
+	}
+}
+
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return ww, wh
 }
@@ -139,11 +180,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
-			color := colors[g.blocks.Get(x, y)]
+			color := background
+
+			if ci := g.blocks.Get(x, y); ci >= 0 {
+				color = colors[ci]
+			}
+
 			tile.Fill(color)
 
+			sx, sy := g.ScreenCoords(x, y)
+
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(x*g.tw+border+bw), float64(y*g.th+border+bh))
+			op.GeoM.Translate(float64(sx+border+bw), float64(sy+border+bh))
 			g.canvas.DrawImage(tile, op)
 		}
 	}
@@ -161,7 +209,14 @@ func (g *Game) Update() error {
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 		x, y := g.Coords(ebiten.CursorPosition())
-		fmt.Println(x, y, g.Connected(x, y))
+		//fmt.Println(x, y)
+
+		l := g.Connected(x, y)
+		if len(l) < 3 {
+			break
+		}
+
+		g.Collapse(l)
 	}
 
 	return nil
