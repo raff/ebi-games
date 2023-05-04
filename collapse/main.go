@@ -22,6 +22,8 @@ const (
 	visited = -1
 	empty   = -2
 	bg      = -3
+
+	title = "Block Collapse"
 )
 
 var (
@@ -29,12 +31,12 @@ var (
 	//borderColor = color.NRGBA{160, 160, 160, 255}
 
 	colors = []color.NRGBA{
-		{255, 0, 0, 255},   // red
-		{0, 255, 0, 255},   // green
-		{0, 0, 255, 255},   // blue
-		{255, 255, 0, 255}, // yellow
-		{0, 255, 255, 255}, // cyan
-		{255, 0, 255, 255}, // magenta
+		{255, 0, 0, 255},     // red
+		{0, 255, 0, 255},     // green
+		{0, 0, 255, 255},     // blue
+		{255, 255, 0, 255},   // yellow
+		{128, 255, 255, 255}, // cyan
+		{255, 128, 255, 255}, // magenta
 	}
 
 	noop = &ebiten.DrawImageOptions{}
@@ -58,7 +60,7 @@ func main() {
 
 	ww, wh = g.Init(ebiten.ScreenSizeInFullscreen())
 
-	ebiten.SetWindowTitle("Block Collapse")
+	ebiten.SetWindowTitle(title)
 	ebiten.SetWindowSize(ww, wh)
 	ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
 	ebiten.RunGame(g)
@@ -70,11 +72,11 @@ type Point struct {
 
 type Game struct {
 	blocks matrix.Matrix[int]
-	counts [][]int
 
 	tw, th int // game tile width, height
-
 	canvas *ebiten.Image
+
+	score int
 }
 
 func (g *Game) Init(w, h int) (int, int) {
@@ -102,6 +104,8 @@ func (g *Game) Init(w, h int) (int, int) {
 		}
 	}
 
+	g.score = 0
+
 	return ww, wh
 }
 
@@ -111,6 +115,10 @@ func (g *Game) Print() {
 		fmt.Println(g.blocks.Row(y))
 	}
 	fmt.Println("]")
+}
+
+func (g *Game) Score() string {
+	return fmt.Sprintf("%v", g.score)
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
@@ -193,6 +201,8 @@ func (g *Game) Collapse(l []Point) {
 			}
 		}
 	}
+
+	g.score += len(l)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -241,6 +251,7 @@ func (g *Game) Update() error {
 		}
 
 		g.Collapse(l)
+		ebiten.SetWindowTitle(title + " - " + g.Score())
 	}
 
 	return nil
