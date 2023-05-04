@@ -41,6 +41,8 @@ var (
 	}
 
 	noop = &ebiten.DrawImageOptions{}
+
+	autoplay = false
 )
 
 func main() {
@@ -256,22 +258,25 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Update() error {
 	switch {
-	case inpututil.IsKeyJustPressed(ebiten.KeyR):
+	case inpututil.IsKeyJustPressed(ebiten.KeyA): // (A)utoplay
+		autoplay = !autoplay
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)estart
 		g.Init(0, 0)
 		ebiten.SetWindowTitle(title)
 
-	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX):
-		return fmt.Errorf("quit")
+	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
+		return ebiten.Termination
 
-	case inpututil.IsKeyJustPressed(ebiten.KeyH):
+	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)elp pressed
 		if l := g.Find(); len(l) > 0 {
 			g.highlight = l
 		}
 
-	case inpututil.IsKeyJustReleased(ebiten.KeyH):
+	case inpututil.IsKeyJustReleased(ebiten.KeyH): // (H)elp released
 		g.highlight = nil
 
-	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
 		x, y := g.Coords(ebiten.CursorPosition())
 		//fmt.Println(x, y)
 
@@ -282,6 +287,14 @@ func (g *Game) Update() error {
 
 		g.Collapse(l)
 		ebiten.SetWindowTitle(title + " - " + g.Score())
+
+	case autoplay:
+		if l := g.Find(); len(l) > 0 {
+			g.Collapse(l)
+			ebiten.SetWindowTitle(title + " - " + g.Score())
+		} else {
+			autoplay = false
+		}
 	}
 
 	return nil
