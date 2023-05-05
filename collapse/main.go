@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	hcount = 20
-	vcount = 20
+	hcount = 25
+	vcount = 25
 	border = 4
 
 	nmatch  = 3
@@ -23,6 +23,7 @@ const (
 	visited = -1
 	empty   = -2
 	bg      = -3
+	high    = -4
 
 	title = "Block Collapse"
 )
@@ -41,6 +42,27 @@ var (
 	}
 
 	noop = &ebiten.DrawImageOptions{}
+
+	gomessage = []int{
+		1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0,
+		0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+		0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0,
+		0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+		0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+		0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0,
+		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0,
+		0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0,
+		0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0,
+		0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0,
+		0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0,
+		0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0,
+		1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	}
+
+	gow = 24
+	goh = 15
 )
 
 func main() {
@@ -104,6 +126,28 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.autoplay = false
 
 	return g.ww, g.wh
+}
+
+func (g *Game) End() {
+	w, h := g.blocks.Width(), g.blocks.Height()
+
+	bw := (w - gow) / 2
+	bh := (h - goh) / 2
+
+	p := 0
+
+	for y := 0; y < goh; y++ {
+		for x := 0; x < gow; x++ {
+			c := rand.Intn(len(colors)) // bg
+			if gomessage[p] == 0 {
+				c = bg // rand.Intn(len(colors))
+			}
+
+			g.blocks.Set(bw+x, bh+y, c)
+			p++
+		}
+	}
+
 }
 
 func (g *Game) Print() {
@@ -230,8 +274,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		for x := 0; x < hcount; x++ {
 			color := background
 
-			if ci := g.blocks.Get(x, y); ci >= 0 {
+			ci := g.blocks.Get(x, y)
+			switch {
+			case ci >= 0:
 				color = colors[ci]
+
+			case ci == high:
+				color = highlightColor
 			}
 
 			tile.Fill(color)
@@ -294,6 +343,7 @@ func (g *Game) Update() error {
 			g.Collapse(l)
 			ebiten.SetWindowTitle(title + " - " + g.Score())
 		} else {
+			g.End()
 			g.autoplay = false
 		}
 	}
