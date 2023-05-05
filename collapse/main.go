@@ -69,7 +69,7 @@ func main() {
 	g := &Game{}
 
 	ebiten.SetWindowTitle(title)
-	//ebiten.SetFPSMode(ebiten.FPSModeVsyncOffMinimum)
+	ebiten.SetVsyncEnabled(false)
 	ebiten.SetWindowSize(g.Init(ebiten.ScreenSizeInFullscreen()))
 	ebiten.RunGame(g)
 }
