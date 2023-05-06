@@ -30,11 +30,11 @@ const (
 
 var (
 	background     = color.NRGBA{80, 80, 80, 255}
-	highlightColor = color.NRGBA{240, 220, 240, 255}
+	highlightColor = color.NRGBA{250, 250, 250, 255}
 
 	colors = []color.NRGBA{
 		{255, 0, 0, 255},     // red
-		{0, 255, 0, 255},     // green
+		{0, 220, 0, 220},     // green
 		{0, 0, 255, 255},     // blue
 		{255, 255, 0, 255},   // yellow
 		{64, 220, 220, 255},  // cyan
