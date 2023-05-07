@@ -10,6 +10,7 @@ import (
 	"github.com/gobs/matrix"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const (
@@ -29,7 +30,7 @@ const (
 )
 
 var (
-	background     = color.NRGBA{80, 80, 80, 255}
+	bgColor        = color.NRGBA{80, 80, 80, 255}
 	highlightColor = color.NRGBA{250, 250, 250, 255}
 
 	colors = []color.NRGBA{
@@ -84,7 +85,8 @@ type Game struct {
 	ww, wh int // window width, height
 	tw, th int // game tile width, height
 
-	highlight []Point
+	cx, cy    int     // cell to hightlight
+	highlight []Point // blocks to hightlight
 	autoplay  bool
 
 	score int
@@ -108,7 +110,7 @@ func (g *Game) Init(w, h int) (int, int) {
 		g.wh = (g.th * vcount) + border
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
-		g.canvas.Fill(background)
+		g.canvas.Fill(bgColor)
 
 		g.blocks = matrix.New[int](hcount, vcount, false)
 	}
@@ -122,6 +124,7 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.score = 0
 	g.highlight = nil
 	g.autoplay = false
+	g.cx, g.cy = -1, -1
 
 	return g.ww, g.wh
 }
@@ -269,9 +272,13 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func (g *Game) Draw(screen *ebiten.Image) {
 	tile := ebiten.NewImage(g.tw-border, g.th-border)
 
+	if g.cx >= 0 {
+		g.canvas.Fill(bgColor)
+	}
+
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
-			color := background
+			color := bgColor
 
 			if ci := g.blocks.Get(x, y); ci >= 0 {
 				color = colors[ci]
@@ -297,6 +304,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.canvas.DrawImage(tile, op)
 	}
 
+	if g.cx >= 0 {
+		sx, sy := g.ScreenCoords(g.cx, g.cy)
+		b := float32(border) / 2
+
+		vector.StrokeRect(g.canvas,
+			float32(sx)+b, float32(sy)+b, float32(g.tw), float32(g.th), b, highlightColor, false)
+	}
+
 	screen.DrawImage(g.canvas, noop)
 }
 
@@ -315,12 +330,16 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)elp pressed
 		if l := g.Find(); len(l) > 0 {
 			g.highlight = l
+			g.cx, g.cy = -1, -1
 		}
 
 	case inpututil.IsKeyJustReleased(ebiten.KeyH): // (H)elp released
 		g.highlight = nil
+		g.cx, g.cy = -1, -1
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
+		g.cx, g.cy = -1, -1
+
 		x, y := g.Coords(ebiten.CursorPosition())
 		//fmt.Println(x, y)
 
@@ -336,7 +355,82 @@ func (g *Game) Update() error {
 			g.End()
 		}
 
+	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
+		if g.cx < 0 {
+			break
+		}
+
+		l := g.Connected(g.cx, g.cy)
+		if len(l) < nmatch {
+			break
+		}
+
+		//g.cx, g.cy = -1, -1
+
+		g.Collapse(l)
+		ebiten.SetWindowTitle(title + " - " + g.Score())
+
+		if l := g.Find(); len(l) == 0 {
+			g.End()
+		}
+
+	case isKeyPressed(ebiten.KeyLeft):
+		switch {
+		case g.cx < 0:
+			g.cx = g.blocks.Width() - 1
+			g.cy = 0
+
+		case g.cx == 0:
+			g.cx = g.blocks.Width() - 1
+
+		default:
+			g.cx--
+		}
+
+	case isKeyPressed(ebiten.KeyRight):
+		switch {
+		case g.cx < 0:
+			g.cx = 0
+			g.cy = 0
+
+		case g.cx == g.blocks.Width()-1:
+			g.cx = 0
+
+		default:
+			g.cx++
+		}
+
+	case isKeyPressed(ebiten.KeyDown):
+		switch {
+		case g.cy < 0:
+			g.cx = 0
+			g.cy = 0
+
+		case g.cy == 0:
+			g.cy = g.blocks.Height() - 1
+
+		default:
+			g.cy--
+		}
+
+	case isKeyPressed(ebiten.KeyUp):
+		switch {
+		case g.cy < 0:
+			g.cx = 0
+			g.cy = g.blocks.Height() - 1
+
+		case g.cy == g.blocks.Height()-1:
+			g.cy = 0
+
+		default:
+			g.cy++
+		}
+
+	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
+
 	case g.autoplay:
+		g.cx, g.cy = -1, -1
+
 		if l := g.Find(); len(l) > 0 {
 			g.Collapse(l)
 			ebiten.SetWindowTitle(title + " - " + g.Score())
@@ -347,4 +441,30 @@ func (g *Game) Update() error {
 	}
 
 	return nil
+}
+
+var keyPressed = map[ebiten.Key]bool{}
+
+func isKeyPressed(key ebiten.Key) bool {
+	const (
+		delay    = 10
+		interval = 3
+	)
+
+	if inpututil.IsKeyJustReleased(key) {
+		keyPressed[key] = false
+		return false
+	}
+
+	d := inpututil.KeyPressDuration(key)
+	if d > 0 && !keyPressed[key] {
+		keyPressed[key] = true
+		return true
+	}
+
+	if d >= delay && (d-delay)%interval == 0 {
+		return true
+	}
+
+	return false
 }
