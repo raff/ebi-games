@@ -37,7 +37,7 @@ var (
 		{255, 0, 0, 255},     // red
 		{0, 220, 0, 220},     // green
 		{0, 0, 255, 255},     // blue
-		{255, 255, 0, 255},   // yellow
+		{255, 220, 0, 255},   // yellow
 		{64, 220, 220, 255},  // cyan
 		{255, 128, 255, 255}, // magenta
 	}
@@ -85,7 +85,8 @@ type Game struct {
 	ww, wh int // window width, height
 	tw, th int // game tile width, height
 
-	cx, cy    int     // cell to hightlight
+	cx, cy int // last cell
+
 	highlight []Point // blocks to hightlight
 	autoplay  bool
 
@@ -272,9 +273,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func (g *Game) Draw(screen *ebiten.Image) {
 	tile := ebiten.NewImage(g.tw-border, g.th-border)
 
-	if g.cx >= 0 {
-		g.canvas.Fill(bgColor)
-	}
+	g.canvas.Fill(bgColor)
 
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
@@ -304,13 +303,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.canvas.DrawImage(tile, op)
 	}
 
-	if g.cx >= 0 {
-		sx, sy := g.ScreenCoords(g.cx, g.cy)
-		b := float32(border) / 2
+	sx, sy := g.ScreenCoords(g.cx, g.cy)
+	b := float32(border) / 2
 
-		vector.StrokeRect(g.canvas,
-			float32(sx)+b, float32(sy)+b, float32(g.tw), float32(g.th), b, highlightColor, false)
-	}
+	vector.StrokeRect(g.canvas,
+		float32(sx)+b, float32(sy)+b, float32(g.tw), float32(g.th), b, highlightColor, false)
 
 	screen.DrawImage(g.canvas, noop)
 }
@@ -330,20 +327,18 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)elp pressed
 		if l := g.Find(); len(l) > 0 {
 			g.highlight = l
-			g.cx, g.cy = -1, -1
 		}
 
 	case inpututil.IsKeyJustReleased(ebiten.KeyH): // (H)elp released
 		g.highlight = nil
-		g.cx, g.cy = -1, -1
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
-		g.cx, g.cy = -1, -1
+		g.highlight = nil
 
-		x, y := g.Coords(ebiten.CursorPosition())
+		g.cx, g.cy = g.Coords(ebiten.CursorPosition())
 		//fmt.Println(x, y)
 
-		l := g.Connected(x, y)
+		l := g.Connected(g.cx, g.cy)
 		if len(l) < nmatch {
 			break
 		}
@@ -356,10 +351,6 @@ func (g *Game) Update() error {
 		}
 
 	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
-		if g.cx < 0 {
-			break
-		}
-
 		l := g.Connected(g.cx, g.cy)
 		if len(l) < nmatch {
 			break
@@ -426,11 +417,7 @@ func (g *Game) Update() error {
 			g.cy++
 		}
 
-	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
-
 	case g.autoplay:
-		g.cx, g.cy = -1, -1
-
 		if l := g.Find(); len(l) > 0 {
 			g.Collapse(l)
 			ebiten.SetWindowTitle(title + " - " + g.Score())
