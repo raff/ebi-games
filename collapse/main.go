@@ -71,6 +71,7 @@ func main() {
 
 	ebiten.SetWindowTitle(title)
 	ebiten.SetVsyncEnabled(false)
+	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init(ebiten.ScreenSizeInFullscreen()))
 	ebiten.RunGame(g)
 }
@@ -93,6 +94,7 @@ type Game struct {
 	score int
 
 	canvas *ebiten.Image // image buffer
+	redraw bool          // content changed
 }
 
 func (g *Game) Init(w, h int) (int, int) {
@@ -125,6 +127,7 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.score = 0
 	g.highlight = nil
 	g.autoplay = false
+	g.redraw = true
 	g.cx, g.cy = -1, -1
 
 	return g.ww, g.wh
@@ -271,6 +274,10 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	if !g.redraw {
+		return
+	}
+
 	tile := ebiten.NewImage(g.tw-border, g.th-border)
 
 	g.canvas.Fill(bgColor)
@@ -310,16 +317,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		float32(sx)+b, float32(sy)+b, float32(g.tw), float32(g.th), b, highlightColor, false)
 
 	screen.DrawImage(g.canvas, noop)
+	g.redraw = false
 }
 
 func (g *Game) Update() error {
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyA): // (A)utoplay
 		g.autoplay = !g.autoplay
+		g.redraw = true
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)estart
 		g.Init(0, 0)
 		ebiten.SetWindowTitle(title)
+		g.redraw = true
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
 		return ebiten.Termination
@@ -327,22 +337,24 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)elp pressed
 		if l := g.Find(); len(l) > 0 {
 			g.highlight = l
+			g.redraw = true
 		}
 
 	case inpututil.IsKeyJustReleased(ebiten.KeyH): // (H)elp released
 		g.highlight = nil
+		g.redraw = true
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
 		g.highlight = nil
 
 		g.cx, g.cy = g.Coords(ebiten.CursorPosition())
-		//fmt.Println(x, y)
 
 		l := g.Connected(g.cx, g.cy)
 		if len(l) < nmatch {
 			break
 		}
 
+		g.redraw = true
 		g.Collapse(l)
 		ebiten.SetWindowTitle(title + " - " + g.Score())
 
@@ -356,8 +368,7 @@ func (g *Game) Update() error {
 			break
 		}
 
-		//g.cx, g.cy = -1, -1
-
+		g.redraw = true
 		g.Collapse(l)
 		ebiten.SetWindowTitle(title + " - " + g.Score())
 
@@ -366,6 +377,7 @@ func (g *Game) Update() error {
 		}
 
 	case isKeyPressed(ebiten.KeyLeft):
+		g.redraw = true
 		switch {
 		case g.cx < 0:
 			g.cx = g.blocks.Width() - 1
@@ -379,6 +391,7 @@ func (g *Game) Update() error {
 		}
 
 	case isKeyPressed(ebiten.KeyRight):
+		g.redraw = true
 		switch {
 		case g.cx < 0:
 			g.cx = 0
@@ -392,6 +405,7 @@ func (g *Game) Update() error {
 		}
 
 	case isKeyPressed(ebiten.KeyDown):
+		g.redraw = true
 		switch {
 		case g.cy < 0:
 			g.cx = 0
@@ -405,6 +419,7 @@ func (g *Game) Update() error {
 		}
 
 	case isKeyPressed(ebiten.KeyUp):
+		g.redraw = true
 		switch {
 		case g.cy < 0:
 			g.cx = 0
@@ -418,6 +433,7 @@ func (g *Game) Update() error {
 		}
 
 	case g.autoplay:
+		g.redraw = true
 		if l := g.Find(); len(l) > 0 {
 			g.Collapse(l)
 			ebiten.SetWindowTitle(title + " - " + g.Score())
