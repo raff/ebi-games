@@ -249,7 +249,7 @@ func (g *Game) Collapse(l []Point) {
 		}
 	}
 
-	g.score += len(l)
+	g.score += 1 << len(l)
 }
 
 func (g *Game) Find() []Point {
@@ -302,7 +302,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	tile.Fill(highlightColor)
 
-	for _, p := range g.highlight {
+	for i, p := range g.highlight {
+		if i == 0 {
+			g.cx, g.cy = p.x, p.y
+		}
+
 		sx, sy := g.ScreenCoords(p.x, p.y)
 
 		op := &ebiten.DrawImageOptions{}
