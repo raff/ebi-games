@@ -95,6 +95,8 @@ type Game struct {
 
 	canvas *ebiten.Image // image buffer
 	redraw bool          // content changed
+
+	clear time.Time
 }
 
 func (g *Game) Init(w, h int) (int, int) {
@@ -274,7 +276,9 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	if !g.redraw {
+	if !g.clear.IsZero() && time.Now().After(g.clear) {
+		g.clear = time.Time{}
+	} else if !g.redraw {
 		return
 	}
 
@@ -305,6 +309,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for i, p := range g.highlight {
 		if i == 0 {
 			g.cx, g.cy = p.x, p.y
+			g.clear = time.Now().Add(time.Second)
 		}
 
 		sx, sy := g.ScreenCoords(p.x, p.y)
@@ -314,11 +319,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.canvas.DrawImage(tile, op)
 	}
 
-	sx, sy := g.ScreenCoords(g.cx, g.cy)
-	b := float32(border) / 2
+	if !(g.clear.IsZero()) {
+		sx, sy := g.ScreenCoords(g.cx, g.cy)
+		b := float32(border) / 2
 
-	vector.StrokeRect(g.canvas,
-		float32(sx)+b, float32(sy)+b, float32(g.tw), float32(g.th), b, highlightColor, false)
+		vector.StrokeRect(g.canvas,
+			float32(sx)+b, float32(sy)+b, float32(g.tw), float32(g.th), b, highlightColor, false)
+	}
 
 	screen.DrawImage(g.canvas, noop)
 	g.redraw = false
@@ -352,6 +359,7 @@ func (g *Game) Update() error {
 		g.highlight = nil
 
 		g.cx, g.cy = g.Coords(ebiten.CursorPosition())
+		g.clear = time.Now().Add(time.Second)
 
 		l := g.Connected(g.cx, g.cy)
 		if len(l) < nmatch {
@@ -382,6 +390,7 @@ func (g *Game) Update() error {
 
 	case isKeyPressed(ebiten.KeyLeft):
 		g.redraw = true
+		g.clear = time.Now().Add(time.Second)
 		switch {
 		case g.cx < 0:
 			g.cx = g.blocks.Width() - 1
@@ -396,6 +405,7 @@ func (g *Game) Update() error {
 
 	case isKeyPressed(ebiten.KeyRight):
 		g.redraw = true
+		g.clear = time.Now().Add(time.Second)
 		switch {
 		case g.cx < 0:
 			g.cx = 0
@@ -410,6 +420,7 @@ func (g *Game) Update() error {
 
 	case isKeyPressed(ebiten.KeyDown):
 		g.redraw = true
+		g.clear = time.Now().Add(time.Second)
 		switch {
 		case g.cy < 0:
 			g.cx = 0
@@ -424,6 +435,7 @@ func (g *Game) Update() error {
 
 	case isKeyPressed(ebiten.KeyUp):
 		g.redraw = true
+		g.clear = time.Now().Add(time.Second)
 		switch {
 		case g.cy < 0:
 			g.cx = 0
