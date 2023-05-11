@@ -180,6 +180,10 @@ func (g *Game) ScreenCoords(x, y int) (int, int) {
 
 func (g *Game) Connected(x, y int) []Point {
 	v := g.blocks.Get(x, y)
+	if v < 0 {
+		return nil
+	}
+
 	b := g.blocks.Clone()
 
 	l, _ := connected(b, v, x, y, nil)
