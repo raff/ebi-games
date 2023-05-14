@@ -258,7 +258,9 @@ func (g *Game) Collapse(l []Point) {
 	g.score += 1 << len(l)
 }
 
-func (g *Game) Find() []Point {
+func (g *Game) Find(longest bool) (block []Point) {
+	ll := 0
+
 	for x := 0; x < hcount; x++ {
 		for y := 0; y < vcount; y++ {
 			if g.blocks.Get(x, y) == bg {
@@ -266,13 +268,20 @@ func (g *Game) Find() []Point {
 			}
 
 			l := g.Connected(x, y)
-			if len(l) >= nmatch {
+			if longest {
+				if len(l) > ll {
+					block = l
+					ll = len(l)
+				}
+
+				continue
+			} else if len(l) >= nmatch {
 				return l
 			}
 		}
 	}
 
-	return nil
+	return block
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -350,12 +359,19 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)elp pressed
-		if l := g.Find(); len(l) > 0 {
+		if l := g.Find(false); len(l) > 0 {
 			g.highlight = l
 			g.redraw = true
 		}
 
-	case inpututil.IsKeyJustReleased(ebiten.KeyH): // (H)elp released
+	case inpututil.IsKeyJustPressed(ebiten.KeyL): // (L)ongest pressed
+		if l := g.Find(true); len(l) > 0 {
+			g.highlight = l
+			g.redraw = true
+		}
+
+	case inpututil.IsKeyJustReleased(ebiten.KeyH) || // (H)elp released
+		inpututil.IsKeyJustReleased(ebiten.KeyL): // (L)ongest released
 		g.highlight = nil
 		g.redraw = true
 
@@ -374,7 +390,7 @@ func (g *Game) Update() error {
 		g.Collapse(l)
 		ebiten.SetWindowTitle(title + " - " + g.Score())
 
-		if l := g.Find(); len(l) == 0 {
+		if l := g.Find(false); len(l) == 0 {
 			g.End()
 		}
 
@@ -388,7 +404,7 @@ func (g *Game) Update() error {
 		g.Collapse(l)
 		ebiten.SetWindowTitle(title + " - " + g.Score())
 
-		if l := g.Find(); len(l) == 0 {
+		if l := g.Find(false); len(l) == 0 {
 			g.End()
 		}
 
@@ -454,7 +470,7 @@ func (g *Game) Update() error {
 
 	case g.autoplay:
 		g.redraw = true
-		if l := g.Find(); len(l) > 0 {
+		if l := g.Find(false); len(l) > 0 {
 			g.Collapse(l)
 			ebiten.SetWindowTitle(title + " - " + g.Score())
 		} else {
