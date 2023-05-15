@@ -80,6 +80,14 @@ type Point struct {
 	x, y int
 }
 
+type Autoplay int
+
+const (
+	autoplayOff Autoplay = iota
+	autoplayShort
+	autoplayLong
+)
+
 type Game struct {
 	blocks matrix.Matrix[int]
 
@@ -89,7 +97,7 @@ type Game struct {
 	cx, cy int // last cell
 
 	highlight []Point // blocks to hightlight
-	autoplay  bool
+	autoplay  Autoplay
 
 	score int
 
@@ -128,7 +136,7 @@ func (g *Game) Init(w, h int) (int, int) {
 
 	g.score = 0
 	g.highlight = nil
-	g.autoplay = false
+	g.autoplay = autoplayOff
 	g.redraw = true
 	g.cx, g.cy = -1, -1
 
@@ -268,14 +276,17 @@ func (g *Game) Find(longest bool) (block []Point) {
 			}
 
 			l := g.Connected(x, y)
-			if longest {
-				if len(l) > ll {
-					block = l
-					ll = len(l)
+			if len(l) >= nmatch {
+
+				if longest {
+					if len(l) > ll {
+						block = l
+						ll = len(l)
+					}
+
+					continue
 				}
 
-				continue
-			} else if len(l) >= nmatch {
 				return l
 			}
 		}
@@ -347,7 +358,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) Update() error {
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyA): // (A)utoplay
-		g.autoplay = !g.autoplay
+		switch {
+		case g.autoplay != autoplayOff:
+			g.autoplay = autoplayOff
+
+		case ebiten.IsKeyPressed(ebiten.KeyShift):
+			g.autoplay = autoplayLong
+
+		default:
+			g.autoplay = autoplayShort
+		}
 		g.redraw = true
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)estart
@@ -359,19 +379,13 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)elp pressed
-		if l := g.Find(false); len(l) > 0 {
+		longest := ebiten.IsKeyPressed(ebiten.KeyShift)
+		if l := g.Find(longest); len(l) > 0 {
 			g.highlight = l
 			g.redraw = true
 		}
 
-	case inpututil.IsKeyJustPressed(ebiten.KeyL): // (L)ongest pressed
-		if l := g.Find(true); len(l) > 0 {
-			g.highlight = l
-			g.redraw = true
-		}
-
-	case inpututil.IsKeyJustReleased(ebiten.KeyH) || // (H)elp released
-		inpututil.IsKeyJustReleased(ebiten.KeyL): // (L)ongest released
+	case inpututil.IsKeyJustReleased(ebiten.KeyH): // (H)elp released
 		g.highlight = nil
 		g.redraw = true
 
@@ -468,14 +482,14 @@ func (g *Game) Update() error {
 			g.cy++
 		}
 
-	case g.autoplay:
+	case g.autoplay != autoplayOff:
 		g.redraw = true
-		if l := g.Find(false); len(l) > 0 {
+		if l := g.Find(g.autoplay == autoplayLong); len(l) > 0 {
 			g.Collapse(l)
 			ebiten.SetWindowTitle(title + " - " + g.Score())
 		} else {
 			g.End()
-			g.autoplay = false
+			g.autoplay = autoplayOff
 		}
 	}
 
