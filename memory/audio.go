@@ -1,17 +1,15 @@
-//go:build !ios && !android && !js
+// ## go:build !ios && !android && !js
 
 package main
 
 import (
 	"bytes"
 	"log"
-	"time"
 
 	_ "embed"
 
-	"github.com/faiface/beep"
-	"github.com/faiface/beep/speaker"
-	"github.com/faiface/beep/wav"
+	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 )
 
 const (
@@ -26,48 +24,47 @@ var (
 	//go:embed assets/revflip.wav
 	wavReset []byte
 
-	audioBuffer *beep.Buffer
-	audioLimits [2]int
+	audioPlayers []*audio.Player
 )
 
 func audioInit() {
-	audioFlip, format, err := wav.Decode(bytes.NewBuffer(wavFlip))
+	audioContext := audio.NewContext(22050)
+
+	wbits, err := wav.Decode(audioContext, bytes.NewReader(wavFlip))
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-	defer audioFlip.Close()
 
-	audioReset, _, err := wav.Decode(bytes.NewBuffer(wavReset))
+	p, err := audioContext.NewPlayer(wbits)
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-	defer audioReset.Close()
 
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	audioPlayers = append(audioPlayers, p)
 
-	audioBuffer = beep.NewBuffer(format)
+	wbits, err = wav.Decode(audioContext, bytes.NewReader(wavReset))
+	if err != nil {
+		log.Fatalf("%+v", err)
+	}
 
-	audioBuffer.Append(audioFlip)
-	audioLimits[0] = audioBuffer.Len() // 0 to audioLimits[0]
+	p, err = audioContext.NewPlayer(wbits)
+	if err != nil {
+		log.Fatalf("%+v", err)
+	}
 
-	audioBuffer.Append(audioReset)
-	audioLimits[1] = audioBuffer.Len() // audioLimits[0] to audioLimits[1]
+	audioPlayers = append(audioPlayers, p)
 }
 
 func audioPlay(aid int) {
-	if audioBuffer == nil {
+	lp := len(audioPlayers) - 1
+
+	if aid < 0 || aid > lp {
 		return
 	}
 
-	var s beep.StreamSeeker
-
-	switch aid {
-	case AudioFlip:
-		s = audioBuffer.Streamer(0, audioLimits[0])
-
-	case AudioReset:
-		s = audioBuffer.Streamer(audioLimits[0], audioLimits[1])
-	}
-
-	speaker.Play(s)
+	p := audioPlayers[aid]
+	go func() {
+		p.Rewind()
+		p.Play()
+	}()
 }

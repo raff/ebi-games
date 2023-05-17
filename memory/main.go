@@ -157,6 +157,8 @@ func main() {
 
 	ebiten.SetWindowTitle("Memory")
 	ebiten.SetWindowSize(gw*tw/2, gh*th/2)
+	ebiten.SetVsyncEnabled(false)
+	ebiten.SetScreenClearedEveryFrame(false)
 
 	if err := ebiten.RunGame(&Game{deal: make([]int, 0, 2)}); err != nil {
 		log.Fatal(err)
