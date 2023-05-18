@@ -11,11 +11,13 @@ import (
 )
 
 const (
+	cw = 10
+
 	hcount = 25
 	vcount = 25
 
 	title = "Snake"
-	max   = 10
+	max   = 5
 )
 
 var (
@@ -118,6 +120,8 @@ type Game struct {
 	ww, wh int // window width, height
 	tw, th int // game tile width, height
 
+	cols, rows int
+
 	score int
 
 	canvas *ebiten.Image // image buffer
@@ -126,31 +130,47 @@ type Game struct {
 	delay int
 }
 
-func RandXY() (int, int) {
-	return rand.Intn(hcount), rand.Intn(vcount)
+func (g *Game) RandXY() (int, int) {
+
+retry:
+	for {
+		x, y := rand.Intn(g.cols), rand.Intn(g.rows)
+
+		if g.food.x == x && g.food.y == y {
+			continue retry
+		}
+
+		if g.snake != nil {
+			for _, p := range g.snake.cells {
+				if p.x == x && p.y == y {
+					continue retry
+				}
+			}
+		}
+
+		return x, y
+	}
 }
 
 func (g *Game) Init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
 		g.ww, g.wh = w/2, h/2
-		if g.ww < g.wh {
-			g.wh = g.ww
-		} else {
-			g.ww = g.wh
-		}
 
-		g.tw = g.ww / hcount
-		g.th = g.wh / vcount
+		g.tw = cw // g.ww / hcount
+		g.th = cw // g.wh / vcount
 
-		g.ww = (g.tw * hcount)
-		g.wh = (g.th * vcount)
+		g.cols = g.ww / g.tw
+		g.rows = g.wh / g.th
+
+		g.ww = (g.tw * g.cols)
+		g.wh = (g.th * g.rows)
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(bgColor)
 	}
 
-	g.snake = NewSnake(RandXY())
-	g.food.x, g.food.y = RandXY()
+	g.snake = NewSnake(g.RandXY())
+	g.food.x, g.food.y = g.RandXY()
 
 	g.score = 0
 	g.dir = Nodir
@@ -168,7 +188,7 @@ func (g *Game) Score() string {
 }
 
 func (g *Game) Fix(y int) int {
-	return hcount - 1 - y
+	return g.rows - 1 - y
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
@@ -248,7 +268,7 @@ func (g *Game) Update() error {
 
 	switch g.dir {
 	case Up:
-		if h.y >= vcount-1 {
+		if h.y >= g.rows-1 {
 			break
 		}
 		eat = g.snake.Move(Up, g.food)
@@ -266,7 +286,7 @@ func (g *Game) Update() error {
 		eat = g.snake.Move(Left, g.food)
 
 	case Right:
-		if h.x >= hcount-1 {
+		if h.x >= g.cols-1 {
 			break
 		}
 		eat = g.snake.Move(Right, g.food)
@@ -274,7 +294,7 @@ func (g *Game) Update() error {
 
 	if eat {
 		g.score++
-		g.food.x, g.food.y = RandXY()
+		g.food.x, g.food.y = g.RandXY()
 	}
 
 	g.redraw = true
