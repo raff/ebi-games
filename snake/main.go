@@ -13,8 +13,7 @@ import (
 const (
 	cw = 14
 
-	hcount = 25
-	vcount = 25
+	border = 6
 
 	title    = "Snake"
 	maxspeed = 10
@@ -163,8 +162,8 @@ func (g *Game) Init(w, h int) (int, int) {
 		g.cols = g.ww / g.tw
 		g.rows = g.wh / g.th
 
-		g.ww = (g.tw * g.cols)
-		g.wh = (g.th * g.rows)
+		g.ww = (g.tw * g.cols) + (2 * border)
+		g.wh = (g.th * g.rows) + (2 * border)
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(bgColor)
@@ -186,19 +185,15 @@ func (g *Game) End() {
 }
 
 func (g *Game) Score() string {
-	return fmt.Sprintf("- score: %v speed: %v", g.score, g.speed)
+	return fmt.Sprintf(" - score: %v speed: %v", g.score, g.speed)
 }
 
 func (g *Game) Fix(y int) int {
 	return g.rows - 1 - y
 }
 
-func (g *Game) Coords(x, y int) (int, int) {
-	return x / g.tw, g.Fix(y / g.th)
-}
-
 func (g *Game) ScreenCoords(x, y int) (int, int) {
-	return x * g.tw, g.Fix(y) * g.th
+	return border + (x * g.tw), border + (g.Fix(y) * g.th)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
