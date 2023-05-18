@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	cw = 10
+	cw = 14
 
 	hcount = 25
 	vcount = 25
 
-	title = "Snake"
-	max   = 5
+	title    = "Snake"
+	maxspeed = 10
 )
 
 var (
@@ -127,7 +127,8 @@ type Game struct {
 	canvas *ebiten.Image // image buffer
 	redraw bool          // content changed
 
-	delay int
+	frame int
+	speed int
 }
 
 func (g *Game) RandXY() (int, int) {
@@ -175,7 +176,8 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.score = 0
 	g.dir = Nodir
 	g.redraw = true
-	g.delay = 0
+	g.frame = 0
+	g.speed = 1
 
 	return g.ww, g.wh
 }
@@ -184,7 +186,7 @@ func (g *Game) End() {
 }
 
 func (g *Game) Score() string {
-	return fmt.Sprintf("%v", g.score)
+	return fmt.Sprintf("- score: %v speed: %v", g.score, g.speed)
 }
 
 func (g *Game) Fix(y int) int {
@@ -256,12 +258,12 @@ func (g *Game) Update() error {
 		g.dir = Up
 	}
 
-	if g.delay < max {
-		g.delay++
+	if g.frame < maxspeed {
+		g.frame++
 		return nil
 	}
 
-	g.delay = 0
+	g.frame = g.speed
 
 	h := g.snake.Head()
 	eat := false
@@ -294,7 +296,13 @@ func (g *Game) Update() error {
 
 	if eat {
 		g.score++
+		if g.score%5 == 0 && g.speed < maxspeed {
+			g.speed++
+		}
+
 		g.food.x, g.food.y = g.RandXY()
+
+		ebiten.SetWindowTitle(title + g.Score())
 	}
 
 	g.redraw = true
