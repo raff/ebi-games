@@ -125,12 +125,12 @@ type Game struct {
 	canvas *ebiten.Image // image buffer
 	redraw bool          // content changed
 
-	frame     int
-	speed     int
-	maxspeed  int
+	frame    int
+	speed    int
+	maxspeed int
 
-        starve  int
-	eats int
+	starve int
+	eats   int
 }
 
 func (g *Game) RandXY() (int, int) {
@@ -181,7 +181,7 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.frame = 0
 	g.speed = 1
 	g.maxspeed = 10
-        g.starve = 0
+	g.starve = 0
 	g.eats = 5
 
 	return g.ww, g.wh
@@ -242,6 +242,8 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyA): // (A)utoplay
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)estart
+		g.Init(0, 0)
+		return nil
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
 		return ebiten.Termination
@@ -297,11 +299,11 @@ func (g *Game) Update() error {
 
 	if eat {
 		g.score++
-                g.starve++
+		g.starve++
 		if g.starve >= g.eats && g.speed < g.maxspeed {
 			g.speed++
 			g.starve = 0
-                        g.eats += 2
+			g.eats += 2
 		}
 
 		g.food.x, g.food.y = g.RandXY()
