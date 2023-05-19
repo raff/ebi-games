@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
@@ -24,25 +25,6 @@ var (
 	foodColor  = color.NRGBA{255, 0, 0, 255} // green
 
 	noop = &ebiten.DrawImageOptions{}
-
-	gomessage = []int{
-		0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1,
-		1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1,
-		1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0,
-		1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1,
-		1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1,
-		0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1,
-		1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0,
-		1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1,
-		1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0,
-		1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0,
-		0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1,
-	}
-
-	gow = 22
-	goh = 13
 )
 
 func main() {
@@ -50,10 +32,10 @@ func main() {
 
 	g := &Game{}
 
-	ebiten.SetWindowTitle(title)
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init(ebiten.ScreenSizeInFullscreen()))
+	ebiten.SetWindowTitle(g.Score())
 	ebiten.RunGame(g)
 }
 
@@ -65,6 +47,15 @@ const (
 	Down
 	Left
 	Right
+)
+
+type MoveResult int
+
+const (
+	Space MoveResult = iota
+	Wall
+	Body
+	Food
 )
 
 type Point struct {
@@ -84,30 +75,42 @@ func (s *Snake) Head() Point {
 	return s.cells[l-1]
 }
 
-func (s *Snake) Move(d Dir, food Point) bool {
+func (s *Snake) Move(d Dir, w, h int, food Point) MoveResult {
 	p := s.Head()
 
 	switch d {
 	case Up:
+		if p.y >= h-1 {
+			return Wall
+		}
 		p.y++
 
 	case Down:
+		if p.y <= 0 {
+			return Wall
+		}
 		p.y--
 
 	case Left:
+		if p.x <= 0 {
+			return Wall
+		}
 		p.x--
 
 	case Right:
+		if p.x >= w-1 {
+			return Wall
+		}
 		p.x++
 	}
 
 	s.cells = append(s.cells, p)
-	add := p.x == food.x && p.y == food.y
-	if !add {
-		s.cells = s.cells[1:]
+	if p.x == food.x && p.y == food.y {
+		return Food
 	}
 
-	return add
+	s.cells = s.cells[1:]
+	return Space
 }
 
 type Game struct {
@@ -115,12 +118,15 @@ type Game struct {
 	food  Point
 	dir   Dir
 
+	message string
+
 	ww, wh int // window width, height
 	tw, th int // game tile width, height
 
 	cols, rows int
 
 	score int
+	lives int
 
 	canvas *ebiten.Image // image buffer
 	redraw bool          // content changed
@@ -155,6 +161,14 @@ retry:
 	}
 }
 
+/*
+ * game.Init(w, h) : new game, calculate all dimensions
+ *
+ * game.Init(0, 0) : restart, reset all values
+ *
+ * game.Init(-1, -1) : new life
+ *
+ */
 func (g *Game) Init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
 		g.ww, g.wh = w/2, h/2
@@ -175,14 +189,19 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.snake = NewSnake(g.RandXY())
 	g.food.x, g.food.y = g.RandXY()
 
-	g.score = 0
 	g.dir = Nodir
 	g.redraw = true
-	g.frame = 0
 	g.speed = 1
+	g.frame = g.speed
 	g.maxspeed = 10
 	g.starve = 0
 	g.eats = 5
+	g.message = ""
+
+	if w >= 0 {
+		g.score = 0
+		g.lives = 5
+	}
 
 	return g.ww, g.wh
 }
@@ -191,7 +210,7 @@ func (g *Game) End() {
 }
 
 func (g *Game) Score() string {
-	return fmt.Sprintf(" - score: %v speed: %v", g.score, g.speed)
+	return fmt.Sprintf("%v - score: %v speed: %v lives: %v", title, g.score, g.speed, g.lives)
 }
 
 func (g *Game) Fix(y int) int {
@@ -208,6 +227,12 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	if !g.redraw {
+		return
+	}
+	if g.message != "" {
+		screen.Fill(bgColor)
+		ebitenutil.DebugPrint(screen, g.message)
+		g.redraw = false
 		return
 	}
 
@@ -239,11 +264,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Update() error {
 	switch {
-	case inpututil.IsKeyJustPressed(ebiten.KeyA): // (A)utoplay
-
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)estart
 		g.Init(0, 0)
+		ebiten.SetWindowTitle(g.Score())
 		return nil
+
+	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
+		if g.frame > 0 {
+			g.frame = 0
+		} else if g.message != "" {
+			if g.lives > 0 { // new life
+				g.Init(-1, -1)
+			}
+			// else game over: restart
+		} else {
+			g.frame = g.speed
+		}
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
 		return ebiten.Termination
@@ -262,42 +298,45 @@ func (g *Game) Update() error {
 	}
 
 	if g.frame < g.maxspeed {
-		g.frame++
+		if g.frame > 0 { // g.frame <= 0 pauses the game
+			g.frame++
+		}
+
 		return nil
 	}
 
 	g.frame = g.speed
 
-	h := g.snake.Head()
-	eat := false
+	var mres MoveResult
 
 	switch g.dir {
 	case Up:
-		if h.y >= g.rows-1 {
-			break
-		}
-		eat = g.snake.Move(Up, g.food)
+		mres = g.snake.Move(Up, g.cols, g.rows, g.food)
 
 	case Down:
-		if h.y <= 0 {
-			break
-		}
-		eat = g.snake.Move(Down, g.food)
+		mres = g.snake.Move(Down, g.cols, g.rows, g.food)
 
 	case Left:
-		if h.x <= 0 {
-			break
-		}
-		eat = g.snake.Move(Left, g.food)
+		mres = g.snake.Move(Left, g.cols, g.rows, g.food)
 
 	case Right:
-		if h.x >= g.cols-1 {
-			break
-		}
-		eat = g.snake.Move(Right, g.food)
+		mres = g.snake.Move(Right, g.cols, g.rows, g.food)
 	}
 
-	if eat {
+	switch mres {
+	case Wall, Body:
+		g.lives--
+		if g.lives > 0 {
+			g.frame = 0
+			g.message = " *** CRASH - Hit <space> to continue ***"
+		} else {
+			g.message = " *** GAME OVER ***"
+		}
+
+		g.dir = Nodir
+		ebiten.SetWindowTitle(g.Score())
+
+	case Food:
 		g.score++
 		g.starve++
 		if g.starve >= g.eats && g.speed < g.maxspeed {
@@ -307,8 +346,7 @@ func (g *Game) Update() error {
 		}
 
 		g.food.x, g.food.y = g.RandXY()
-
-		ebiten.SetWindowTitle(title + g.Score())
+		ebiten.SetWindowTitle(g.Score())
 	}
 
 	g.redraw = true
