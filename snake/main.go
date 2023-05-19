@@ -248,16 +248,16 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
 		return ebiten.Termination
 
-	case isKeyPressed(ebiten.KeyLeft):
+	case inpututil.IsKeyJustPressed(ebiten.KeyLeft):
 		g.dir = Left
 
-	case isKeyPressed(ebiten.KeyRight):
+	case inpututil.IsKeyJustPressed(ebiten.KeyRight):
 		g.dir = Right
 
-	case isKeyPressed(ebiten.KeyDown):
+	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		g.dir = Down
 
-	case isKeyPressed(ebiten.KeyUp):
+	case inpututil.IsKeyJustPressed(ebiten.KeyUp):
 		g.dir = Up
 	}
 
@@ -313,30 +313,4 @@ func (g *Game) Update() error {
 
 	g.redraw = true
 	return nil
-}
-
-var keyPressed = map[ebiten.Key]bool{}
-
-func isKeyPressed(key ebiten.Key) bool {
-	const (
-		delay    = 10
-		interval = 3
-	)
-
-	if inpututil.IsKeyJustReleased(key) {
-		keyPressed[key] = false
-		return false
-	}
-
-	d := inpututil.KeyPressDuration(key)
-	if d > 0 && !keyPressed[key] {
-		keyPressed[key] = true
-		return true
-	}
-
-	if d >= delay && (d-delay)%interval == 0 {
-		return true
-	}
-
-	return false
 }
