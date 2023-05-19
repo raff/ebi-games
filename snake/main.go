@@ -15,8 +15,7 @@ const (
 
 	border = 6
 
-	title    = "Snake"
-	maxspeed = 10
+	title = "Snake"
 )
 
 var (
@@ -126,8 +125,12 @@ type Game struct {
 	canvas *ebiten.Image // image buffer
 	redraw bool          // content changed
 
-	frame int
-	speed int
+	frame     int
+	speed     int
+	maxspeed  int
+
+        starve  int
+	eats int
 }
 
 func (g *Game) RandXY() (int, int) {
@@ -177,6 +180,9 @@ func (g *Game) Init(w, h int) (int, int) {
 	g.redraw = true
 	g.frame = 0
 	g.speed = 1
+	g.maxspeed = 10
+        g.starve = 0
+	g.eats = 5
 
 	return g.ww, g.wh
 }
@@ -253,7 +259,7 @@ func (g *Game) Update() error {
 		g.dir = Up
 	}
 
-	if g.frame < maxspeed {
+	if g.frame < g.maxspeed {
 		g.frame++
 		return nil
 	}
@@ -291,8 +297,11 @@ func (g *Game) Update() error {
 
 	if eat {
 		g.score++
-		if g.score%5 == 0 && g.speed < maxspeed {
+                g.starve++
+		if g.starve >= g.eats && g.speed < g.maxspeed {
 			g.speed++
+			g.starve = 0
+                        g.eats += 2
 		}
 
 		g.food.x, g.food.y = g.RandXY()
