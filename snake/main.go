@@ -104,6 +104,12 @@ func (s *Snake) Move(d Dir, w, h int, food Point) MoveResult {
 		p.x++
 	}
 
+        for _, b := range s.cells {
+            if p.x == b.x && p.y == b.y {
+                return Body
+            }
+        }
+
 	s.cells = append(s.cells, p)
 	if p.x == food.x && p.y == food.y {
 		return Food
@@ -275,6 +281,7 @@ func (g *Game) Update() error {
 		} else if g.message != "" {
 			if g.lives > 0 { // new life
 				g.Init(-1, -1)
+		                ebiten.SetWindowTitle(g.Score())
 			}
 			// else game over: restart
 		} else {
