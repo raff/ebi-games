@@ -1,7 +1,7 @@
 package main
 
 import (
-        "flag"
+	"flag"
 	"fmt"
 	"image/color"
 	"math/rand"
@@ -43,7 +43,7 @@ var (
 		{255, 128, 255, 255}, // magenta
 	}
 
-        ncolors = len(colors)
+	ncolors = len(colors)
 
 	noop = &ebiten.DrawImageOptions{}
 
@@ -68,14 +68,14 @@ var (
 )
 
 func main() {
-        flag.IntVar(&ncolors, "colors", ncolors, "maximum number of colors")
-        flag.Parse()
+	flag.IntVar(&ncolors, "colors", ncolors, "maximum number of colors")
+	flag.Parse()
 
-        if ncolors < 2 {
-            ncolors = 2
-        } else if ncolors > len(colors) {
-            ncolors = len(colors)
-        }
+	if ncolors < 2 {
+		ncolors = 2
+	} else if ncolors > len(colors) {
+		ncolors = len(colors)
+	}
 
 	rand.Seed(time.Now().Unix())
 
