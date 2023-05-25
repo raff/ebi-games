@@ -1,6 +1,7 @@
 package main
 
 import (
+        "flag"
 	"fmt"
 	"image/color"
 	"math/rand"
@@ -42,6 +43,8 @@ var (
 		{255, 128, 255, 255}, // magenta
 	}
 
+        ncolors = len(colors)
+
 	noop = &ebiten.DrawImageOptions{}
 
 	gomessage = []int{
@@ -65,6 +68,15 @@ var (
 )
 
 func main() {
+        flag.IntVar(&ncolors, "colors", ncolors, "maximum number of colors")
+        flag.Parse()
+
+        if ncolors < 2 {
+            ncolors = 2
+        } else if ncolors > len(colors) {
+            ncolors = len(colors)
+        }
+
 	rand.Seed(time.Now().Unix())
 
 	g := &Game{}
@@ -130,7 +142,7 @@ func (g *Game) Init(w, h int) (int, int) {
 
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
-			g.blocks.Set(x, y, rand.Intn(len(colors)))
+			g.blocks.Set(x, y, rand.Intn(ncolors))
 		}
 	}
 
@@ -156,7 +168,7 @@ func (g *Game) End() {
 	for y := 0; y < goh; y++ {
 		for x := 0; x < gow; x++ {
 			if gomessage[p] != 0 {
-				c := rand.Intn(len(colors)) // bg
+				c := rand.Intn(ncolors) // bg
 				g.blocks.Set(bw+x, bh+y, c)
 			}
 
@@ -257,7 +269,7 @@ func (g *Game) Collapse(l []Point) {
 		for y := h - 1; y >= 0; y-- {
 			for x := 0; x < w; x++ {
 				if g.blocks.Get(x, y) == bg {
-					g.blocks.Set(x, y, rand.Intn(len(colors)))
+					g.blocks.Set(x, y, rand.Intn(ncolors))
 				}
 			}
 		}
