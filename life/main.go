@@ -77,9 +77,9 @@ func (g *Game) Init(w, h int) (int, int) {
 
 		g.world = matrix.New[bool](hcount, vcount, false)
 
-		g.speed = 1
+		g.speed = 2
 		g.frame = g.speed
-		g.maxspeed = 5
+		g.maxspeed = 10
 	}
 
 	for y := 0; y < g.world.Height(); y++ {
@@ -150,6 +150,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Update() error {
 	switch {
+	case inpututil.MouseButtonPressDuration(ebiten.MouseButtonLeft) > 3: // Mouse click
+		x, y := g.Coords(ebiten.CursorPosition())
+		g.world.Set(x, y, !g.world.Get(x, y))
+		g.redraw = true
+
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
 		return ebiten.Termination
 
@@ -162,12 +167,12 @@ func (g *Game) Update() error {
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		if g.speed > 0 {
-			g.speed--
+			g.speed -= 2
 		}
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyUp):
 		if g.speed < g.maxspeed {
-			g.speed++
+			g.speed += 2
 		}
 	}
 
