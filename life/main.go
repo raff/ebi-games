@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	cwidth = 3 // cell width on screen
+	cwidth = 4 // cell width on screen
 	border = 1 // space between cells
 
 	roll = true // rollover
@@ -53,11 +53,12 @@ type Game struct {
 	maxspeed int
 	speed    int
 	frame    int
+	gen      int
 }
 
 func (g *Game) Init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
-		g.ww, g.wh = w/2, h/2
+		g.ww, g.wh = w*3/4, h*3/4
 
 		hcount := g.ww / cwidth
 		vcount := g.wh / cwidth
@@ -87,6 +88,7 @@ func (g *Game) Init(w, h int) (int, int) {
 		}
 	}
 
+	g.gen = 0
 	return g.ww, g.wh
 }
 
@@ -102,7 +104,11 @@ func (g *Game) Print() {
 }
 
 func (g *Game) Score() string {
-	return fmt.Sprintf("speed: %v", g.speed)
+	if g.speed == 0 {
+		return fmt.Sprintf("<paused> generation: %v", g.gen)
+	}
+
+	return fmt.Sprintf("speed: %v generation: %v", g.speed, g.gen)
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
@@ -138,6 +144,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	screen.DrawImage(g.canvas, noop)
 	g.redraw = false
+
+	ebiten.SetWindowTitle(title + " - " + g.Score())
 }
 
 func (g *Game) Update() error {
@@ -147,7 +155,6 @@ func (g *Game) Update() error {
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)estart
 		g.Init(0, 0)
-		ebiten.SetWindowTitle(title)
 		if g.speed == 0 {
 			g.redraw = true
 			g.frame = 1
@@ -156,13 +163,11 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		if g.speed > 0 {
 			g.speed--
-			ebiten.SetWindowTitle(title + " - " + g.Score())
 		}
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyUp):
 		if g.speed < g.maxspeed {
 			g.speed++
-			ebiten.SetWindowTitle(title + " - " + g.Score())
 		}
 	}
 
@@ -181,23 +186,28 @@ func (g *Game) Update() error {
 
 	for y := 0; y < g.world.Height(); y++ {
 		for x := 0; x < g.world.Width(); x++ {
-			var alive int
+			var live int // live neighbours
 
-			cell := g.world.Get(x, y)
+			alive := g.world.Get(x, y)
 
 			for _, c := range g.world.Adjacent(x, y, roll) {
 				if c.Value {
-					alive++
+					live++
 				}
 			}
 
-			if cell { // alive
-				if alive == 2 || alive == 3 {
+			// Condesed rules:
+			// 1) Any live cell with two or three live neighbours survives.
+			// 2) Any dead cell with three live neighbours becomes a live cell.
+			// 3) All other live cells die in the next generation.
+			//    Similarly, all other dead cells stay dead.
+			if alive {
+				if live == 2 || live == 3 {
 					nw.Set(x, y, true)
 					changes = true
 				}
 			} else { // dead
-				if alive == 3 {
+				if live == 3 {
 					nw.Set(x, y, true)
 					changes = true
 				}
@@ -207,6 +217,7 @@ func (g *Game) Update() error {
 
 	if changes {
 		g.world = nw
+		g.gen++
 		g.redraw = true
 	}
 
