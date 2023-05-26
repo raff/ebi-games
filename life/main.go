@@ -16,7 +16,7 @@ const (
 	cwidth = 4 // cell width on screen
 	border = 1 // space between cells
 
-	roll = true // rollover
+	wrap = true // wrap around
 
 	title = "Game of life"
 )
@@ -186,7 +186,7 @@ func (g *Game) Update() error {
 
 	g.frame = g.speed
 
-	nw := matrix.New[bool](g.world.Width(), g.world.Height(), false)
+	nw := matrix.NewLike(g.world)
 	changes := false
 
 	for y := 0; y < g.world.Height(); y++ {
@@ -195,7 +195,7 @@ func (g *Game) Update() error {
 
 			alive := g.world.Get(x, y)
 
-			for _, c := range g.world.Adjacent(x, y, roll) {
+			for _, c := range g.world.Adjacent(x, y, wrap) {
 				if c.Value {
 					live++
 				}

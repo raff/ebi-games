@@ -3,7 +3,7 @@ module github.com/raff/ebi-games/life
 go 1.20
 
 require (
-	github.com/gobs/matrix v0.0.4
+	github.com/gobs/matrix v0.0.5
 	github.com/hajimehoshi/ebiten/v2 v2.5.3
 )
 
