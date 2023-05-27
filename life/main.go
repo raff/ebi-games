@@ -18,7 +18,6 @@ const (
 
 	wrap = true // wrap around
 
-	title = "Game of life"
 )
 
 var (
@@ -28,16 +27,19 @@ var (
 	cellColor = color.NRGBA{250, 250, 250, 255}
 
 	noop = &ebiten.DrawImageOptions{}
+
+	title = "Game of life"
 )
 
 func main() {
 	wsize := flag.Int("window", 1, "Window size (1-4)")
 	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
+	high := flag.Bool("high", false, "High Life rules")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
 
-	g := &Game{}
+	g := &Game{high: *high}
 
 	sw, sh := ebiten.ScreenSizeInFullscreen()
 
@@ -71,6 +73,8 @@ type Game struct {
 	canvas *ebiten.Image // image buffer
 	cell   *ebiten.Image // cell image
 	redraw bool          // content changed
+
+	high bool // high-life rules
 
 	maxspeed int
 	speed    int
@@ -187,6 +191,17 @@ func (g *Game) Update() error {
 			g.frame = 1
 		}
 
+	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)ighlife
+		g.high = !g.high
+		g.redraw = true
+		g.frame = 1
+
+		if g.high {
+			title = "Game of Highlife"
+		} else {
+			title = "Game of Life"
+		}
+
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		if g.speed > 0 {
 			g.speed -= 1
@@ -241,6 +256,11 @@ func (g *Game) Update() error {
 				}
 			} else { // dead
 				if live == 3 {
+					nw.Set(x, y, true)
+					changes = true
+				}
+
+				if g.high && live == 6 {
 					nw.Set(x, y, true)
 					changes = true
 				}
