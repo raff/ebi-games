@@ -79,7 +79,7 @@ func (g *Game) Init(w, h int) (int, int) {
 
 		g.speed = 2
 		g.frame = g.speed
-		g.maxspeed = 10
+		g.maxspeed = 16
 	}
 
 	for y := 0; y < g.world.Height(); y++ {
@@ -167,13 +167,19 @@ func (g *Game) Update() error {
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		if g.speed > 0 {
-			g.speed -= 2
+			g.speed -= 1
 		}
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyUp):
 		if g.speed < g.maxspeed {
-			g.speed += 2
+			g.speed += 1
 		}
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyLeft):
+		g.speed = 1
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyRight):
+		g.speed = g.maxspeed
 	}
 
 	if g.frame < g.maxspeed {
