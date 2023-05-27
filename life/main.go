@@ -35,11 +35,18 @@ func main() {
 	wsize := flag.Int("window", 1, "Window size (1-4)")
 	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
 	high := flag.Bool("high", false, "High Life rules")
+	start := flag.Int("start", 10, "Percentage of live cells at start")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
 
-	g := &Game{high: *high}
+	if *start < 1 {
+		*start = 1
+	} else if *start > 100 {
+		*start = 100
+	}
+
+	g := &Game{high: *high, start: *start}
 
 	sw, sh := ebiten.ScreenSizeInFullscreen()
 
@@ -74,7 +81,8 @@ type Game struct {
 	cell   *ebiten.Image // cell image
 	redraw bool          // content changed
 
-	high bool // high-life rules
+	high  bool // high-life rules
+	start int  // % of live cells at gen 0
 
 	maxspeed int
 	speed    int
@@ -106,12 +114,17 @@ func (g *Game) Init(w, h int) (int, int) {
 		g.speed = 2
 		g.frame = g.speed
 		g.maxspeed = 16
+	} else {
+		g.world.Fill(false)
 	}
 
-	for y := 0; y < g.world.Height(); y++ {
-		for x := 0; x < g.world.Width(); x++ {
-			g.world.Set(x, y, rand.Int()%16 == 0)
-		}
+	w = g.world.Width()
+	h = g.world.Height()
+
+	for i := 0; i < len(g.world.Slice())*g.start/100; i++ {
+		x := rand.Intn(w)
+		y := rand.Intn(h)
+		g.world.Set(x, y, true)
 	}
 
 	g.gen = 0
