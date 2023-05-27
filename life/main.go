@@ -247,7 +247,8 @@ func (g *Game) Update() error {
 			// Condesed rules:
 			// 1) Any live cell with two or three live neighbours survives.
 			// 2) Any dead cell with three live neighbours becomes a live cell.
-			// 3) All other live cells die in the next generation.
+			// 3) (Highlife) Any dead cell with six live neighbours becomes a live cell.
+			// 4) All other live cells die in the next generation.
 			//    Similarly, all other dead cells stay dead.
 			if alive {
 				if live == 2 || live == 3 {
@@ -255,12 +256,7 @@ func (g *Game) Update() error {
 					changes = true
 				}
 			} else { // dead
-				if live == 3 {
-					nw.Set(x, y, true)
-					changes = true
-				}
-
-				if g.high && live == 6 {
+				if live == 3 || (g.high && live == 6) {
 					nw.Set(x, y, true)
 					changes = true
 				}
