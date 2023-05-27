@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image/color"
 	"math/rand"
@@ -13,7 +14,6 @@ import (
 )
 
 const (
-	cwidth = 4 // cell width on screen
 	border = 1 // space between cells
 
 	wrap = true // wrap around
@@ -22,6 +22,8 @@ const (
 )
 
 var (
+	cwidth = 4 // cell width
+
 	bgColor   = color.NRGBA{80, 80, 80, 255}
 	cellColor = color.NRGBA{250, 250, 250, 255}
 
@@ -29,14 +31,34 @@ var (
 )
 
 func main() {
+	wsize := flag.Int("window", 1, "Window size (1-4)")
+	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
+	flag.Parse()
+
 	rand.Seed(time.Now().Unix())
 
 	g := &Game{}
 
+	sw, sh := ebiten.ScreenSizeInFullscreen()
+
+	switch *wsize {
+	case 1: // half screen
+		sw /= 2
+		sh /= 2
+
+	case 2: // 3/4 screen
+		sw = sw * 3 / 4
+		sh = sh * 3 / 4
+
+	case 3:
+		sw = sw * 7 / 8
+		sh = sh * 7 / 8
+	}
+
 	ebiten.SetWindowTitle(title)
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
-	ebiten.SetWindowSize(g.Init(ebiten.ScreenSizeInFullscreen()))
+	ebiten.SetWindowSize(g.Init(sw, sh))
 	ebiten.RunGame(g)
 }
 
@@ -58,7 +80,7 @@ type Game struct {
 
 func (g *Game) Init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
-		g.ww, g.wh = w*3/4, h*3/4
+		g.ww, g.wh = w, h
 
 		hcount := g.ww / cwidth
 		vcount := g.wh / cwidth
