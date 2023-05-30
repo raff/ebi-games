@@ -14,10 +14,8 @@ import (
 )
 
 const (
-	border = 1 // space between cells
-
-	wrap = true // wrap around
-
+	border = 1    // space between cells
+	wrap   = true // wrap around
 )
 
 var (
@@ -27,15 +25,13 @@ var (
 	cellColor = color.NRGBA{250, 250, 250, 255}
 
 	noop = &ebiten.DrawImageOptions{}
-
-	title = "Game of life"
 )
 
 func main() {
 	wsize := flag.Int("window", 1, "Window size (1-4)")
 	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
-	high := flag.Bool("high", false, "High Life rules")
 	start := flag.Int("start", 10, "Percentage of live cells at start")
+	rule := flag.Int("rule", 1, "Rule: 1=life 2=highlife 3=34life 4=maze 5=mazectric 6=move")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
@@ -45,8 +41,13 @@ func main() {
 	} else if *start > 100 {
 		*start = 100
 	}
+	if *rule < 1 {
+		*rule = 1
+	} else if *rule > 6 {
+		*rule = 6
+	}
 
-	g := &Game{high: *high, start: *start}
+	g := &Game{rule: rules[*rule], start: *start}
 
 	sw, sh := ebiten.ScreenSizeInFullscreen()
 
@@ -64,11 +65,103 @@ func main() {
 		sh = sh * 7 / 8
 	}
 
-	ebiten.SetWindowTitle(title)
+	//ebiten.SetWindowTitle(title)
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init(sw, sh))
 	ebiten.RunGame(g)
+}
+
+type Rule func(alive bool, live int) bool
+
+type ruleEntry struct {
+	title string
+	rule  Rule
+}
+
+var rules = []struct {
+	title string
+	rule  Rule
+}{
+	{"", nil},
+
+	// Conway's Life
+	//
+	// Condesed rules:
+	//  1. Any live cell with two or three live neighbours survives.
+	//  2. Any dead cell with three live neighbours becomes a live cell.
+	//  3. All other live cells die in the next generation.
+	//     Similarly, all other dead cells stay dead.
+	{"Game of Life", func(alive bool, live int) bool {
+		if alive {
+			return live == 2 || live == 3
+		} else { // dead
+			return live == 3
+		}
+
+		return false
+	}},
+
+	// 3-4 Life
+	{"3-4 Life", func(alive bool, live int) bool {
+		if alive {
+			return live == 3 || live == 4
+		} else { // dead
+			return live == 3 || live == 4
+		}
+
+		return false
+	}},
+
+	// Highlife
+	//
+	// Condesed rules:
+	//  1. Any live cell with two or three live neighbours survives.
+	//  2. Any dead cell with three or siz live neighbours becomes a live cell.
+	//  4. All other live cells die in the next generation.
+	//     Similarly, all other dead cells stay dead.
+	{"Highlife", func(alive bool, live int) bool {
+		if alive {
+			return live == 2 || live == 3
+		} else { // dead
+			return live == 3 || live == 6
+		}
+
+		return false
+	}},
+
+	// maze
+	{"Maze", func(alive bool, live int) bool {
+		if alive {
+			return live >= 1 && live <= 5
+		} else { // dead
+			return live == 3
+		}
+
+		return false
+	}},
+
+	// mazectric
+	{"Mazectric", func(alive bool, live int) bool {
+		if alive {
+			return live >= 1 && live <= 4
+		} else { // dead
+			return live == 3
+		}
+
+		return false
+	}},
+
+	// move
+	{"Move", func(alive bool, live int) bool {
+		if alive {
+			return live == 2 || live == 4 || live == 5
+		} else { // dead
+			return live == 3 || live == 6 || live == 8
+		}
+
+		return false
+	}},
 }
 
 type Game struct {
@@ -81,8 +174,8 @@ type Game struct {
 	cell   *ebiten.Image // cell image
 	redraw bool          // content changed
 
-	high  bool // high-life rules
-	start int  // % of live cells at gen 0
+	start int // % of live cells at gen 0
+	rule  ruleEntry
 
 	maxspeed int
 	speed    int
@@ -184,7 +277,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(g.canvas, noop)
 	g.redraw = false
 
-	ebiten.SetWindowTitle(title + " - " + g.Score())
+	ebiten.SetWindowTitle(g.rule.title + " - " + g.Score())
 }
 
 func (g *Game) Update() error {
@@ -204,16 +297,35 @@ func (g *Game) Update() error {
 			g.frame = 1
 		}
 
-	case inpututil.IsKeyJustPressed(ebiten.KeyH): // (H)ighlife
-		g.high = !g.high
+	case inpututil.IsKeyJustPressed(ebiten.Key1):
 		g.redraw = true
 		g.frame = 1
+		g.rule = rules[1]
 
-		if g.high {
-			title = "Game of Highlife"
-		} else {
-			title = "Game of Life"
-		}
+	case inpututil.IsKeyJustPressed(ebiten.Key2):
+		g.redraw = true
+		g.frame = 1
+		g.rule = rules[2]
+
+	case inpututil.IsKeyJustPressed(ebiten.Key3):
+		g.redraw = true
+		g.frame = 1
+		g.rule = rules[3]
+
+	case inpututil.IsKeyJustPressed(ebiten.Key4):
+		g.redraw = true
+		g.frame = 1
+		g.rule = rules[4]
+
+	case inpututil.IsKeyJustPressed(ebiten.Key5):
+		g.redraw = true
+		g.frame = 1
+		g.rule = rules[5]
+
+	case inpututil.IsKeyJustPressed(ebiten.Key6):
+		g.redraw = true
+		g.frame = 1
+		g.rule = rules[6]
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		if g.speed > 0 {
@@ -257,22 +369,9 @@ func (g *Game) Update() error {
 				}
 			}
 
-			// Condesed rules:
-			// 1) Any live cell with two or three live neighbours survives.
-			// 2) Any dead cell with three live neighbours becomes a live cell.
-			// 3) (Highlife) Any dead cell with six live neighbours becomes a live cell.
-			// 4) All other live cells die in the next generation.
-			//    Similarly, all other dead cells stay dead.
-			if alive {
-				if live == 2 || live == 3 {
-					nw.Set(x, y, true)
-					changes = true
-				}
-			} else { // dead
-				if live == 3 || (g.high && live == 6) {
-					nw.Set(x, y, true)
-					changes = true
-				}
+			if g.rule.rule(alive, live) {
+				nw.Set(x, y, true)
+				changes = true
 			}
 		}
 	}
