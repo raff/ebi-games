@@ -124,6 +124,12 @@ var rules = []Rule{
 
 	// move
 	{title: "Move", live: bset(2) | bset(4) | bset(5), dead: bset(3) | bset(6) | bset(8)},
+
+	// bacteria
+	{title: "Bacteria", live: bset(4) | bset(5) | bset(6), dead: bset(3) | bset(4)},
+
+	// eightlife
+	{title: "EightLife", live: bset(2) | bset(3) | bset(8), dead: bset(3)},
 }
 
 type Game struct {
@@ -288,6 +294,16 @@ func (g *Game) Update() error {
 		g.redraw = true
 		g.frame = 1
 		g.rule = rules[6]
+
+	case inpututil.IsKeyJustPressed(ebiten.Key7):
+		g.redraw = true
+		g.frame = 1
+		g.rule = rules[7]
+
+	case inpututil.IsKeyJustPressed(ebiten.Key8):
+		g.redraw = true
+		g.frame = 1
+		g.rule = rules[8]
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		if g.speed > 0 {
