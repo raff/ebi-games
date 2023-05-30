@@ -72,18 +72,28 @@ func main() {
 	ebiten.RunGame(g)
 }
 
-type Rule func(alive bool, live int) bool
-
-type ruleEntry struct {
+type Rule struct {
 	title string
-	rule  Rule
+	live  int // bitmask of how many live cells are needed to keep the cell alive
+	dead  int // bitmask of how many live cells are needed to make the cell alive
 }
 
-var rules = []struct {
-	title string
-	rule  Rule
-}{
-	{"", nil},
+func (r Rule) Check(alive bool, live int) bool {
+	bit := 1 << live
+
+	if alive {
+		return r.live&bit == bit
+	}
+
+	return r.dead&bit == bit
+}
+
+func bset(b int) int {
+	return 1 << b
+}
+
+var rules = []Rule{
+	{},
 
 	// Conway's Life
 	//
@@ -92,26 +102,10 @@ var rules = []struct {
 	//  2. Any dead cell with three live neighbours becomes a live cell.
 	//  3. All other live cells die in the next generation.
 	//     Similarly, all other dead cells stay dead.
-	{"Game of Life", func(alive bool, live int) bool {
-		if alive {
-			return live == 2 || live == 3
-		} else { // dead
-			return live == 3
-		}
-
-		return false
-	}},
+	{title: "Game of Life", live: bset(2) | bset(3), dead: bset(3)},
 
 	// 3-4 Life
-	{"3-4 Life", func(alive bool, live int) bool {
-		if alive {
-			return live == 3 || live == 4
-		} else { // dead
-			return live == 3 || live == 4
-		}
-
-		return false
-	}},
+	{title: "3-4 Life", live: bset(3) | bset(4), dead: bset(3) | bset(4)},
 
 	// Highlife
 	//
@@ -120,48 +114,16 @@ var rules = []struct {
 	//  2. Any dead cell with three or siz live neighbours becomes a live cell.
 	//  4. All other live cells die in the next generation.
 	//     Similarly, all other dead cells stay dead.
-	{"Highlife", func(alive bool, live int) bool {
-		if alive {
-			return live == 2 || live == 3
-		} else { // dead
-			return live == 3 || live == 6
-		}
-
-		return false
-	}},
+	{title: "Highlife", live: bset(2) | bset(3), dead: bset(3) | bset(6)},
 
 	// maze
-	{"Maze", func(alive bool, live int) bool {
-		if alive {
-			return live >= 1 && live <= 5
-		} else { // dead
-			return live == 3
-		}
-
-		return false
-	}},
+	{title: "Maze", live: bset(1) | bset(2) | bset(3) | bset(4) | bset(5), dead: bset(3)},
 
 	// mazectric
-	{"Mazectric", func(alive bool, live int) bool {
-		if alive {
-			return live >= 1 && live <= 4
-		} else { // dead
-			return live == 3
-		}
-
-		return false
-	}},
+	{title: "Mazectric", live: bset(1) | bset(2) | bset(3) | bset(4), dead: bset(3)},
 
 	// move
-	{"Move", func(alive bool, live int) bool {
-		if alive {
-			return live == 2 || live == 4 || live == 5
-		} else { // dead
-			return live == 3 || live == 6 || live == 8
-		}
-
-		return false
-	}},
+	{title: "Move", live: bset(2) | bset(4) | bset(5), dead: bset(3) | bset(6) | bset(8)},
 }
 
 type Game struct {
@@ -175,7 +137,7 @@ type Game struct {
 	redraw bool          // content changed
 
 	start int // % of live cells at gen 0
-	rule  ruleEntry
+	rule  Rule
 
 	maxspeed int
 	speed    int
@@ -369,7 +331,7 @@ func (g *Game) Update() error {
 				}
 			}
 
-			if g.rule.rule(alive, live) {
+			if g.rule.Check(alive, live) {
 				nw.Set(x, y, true)
 				changes = true
 			}
