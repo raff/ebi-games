@@ -85,14 +85,19 @@ func main() {
 
 type Rule struct {
 	title string
-	live  int // bitmask of how many live cells are needed to keep the cell alive
 	dead  int // bitmask of how many live cells are needed to make the cell alive
+	live  int // bitmask of how many live cells are needed to keep the cell alive
+	age   int // a live cell will age (+1) at each generation until it reaches this value (and dies)
 }
 
 const (
 	NoState      = 0
 	BirthState   = 1
 	SurviveState = 2
+
+	CellDead  = 0
+	CellAlive = 1
+	CellAging = 2
 )
 
 func ParseRule(s string) (r Rule) {
@@ -110,6 +115,7 @@ func ParseRule(s string) (r Rule) {
 	}
 
 	state := NoState
+	age := 0
 
 	for _, c := range s {
 		switch state {
@@ -120,6 +126,11 @@ func ParseRule(s string) (r Rule) {
 
 			case 'S', 's':
 				state = SurviveState
+
+			default:
+				if c >= '0' && c <= '9' {
+					age = (age * 10) + int(c-'0')
+				}
 			}
 
 		case BirthState:
@@ -138,17 +149,33 @@ func ParseRule(s string) (r Rule) {
 		}
 	}
 
+	if age == 0 {
+		r.age = 2
+	} else {
+		r.age = age
+	}
 	return r
 }
 
-func (r Rule) Check(alive bool, live int) bool {
+func (r Rule) Check(age int, live int) int {
 	bit := 1 << live
 
-	if alive {
-		return r.live&bit == bit
+	switch age {
+	case CellDead:
+		if r.dead&bit == bit {
+			age = CellAlive
+		}
+
+	case CellAlive:
+		if r.live&bit != bit {
+			age++
+		}
+
+	default:
+		age++
 	}
 
-	return r.dead&bit == bit
+	return age % r.age
 }
 
 func bset(b int) int {
@@ -163,10 +190,10 @@ var rules = map[ebiten.Key]Rule{
 	//  2. Any dead cell with three live neighbours becomes a live cell.
 	//  3. All other live cells die in the next generation.
 	//     Similarly, all other dead cells stay dead.
-	ebiten.KeyDigit1: {title: "Game of Life", live: bset(2) | bset(3), dead: bset(3)},
+	ebiten.KeyDigit1: {title: "Game of Life", live: bset(2) | bset(3), dead: bset(3), age: 2},
 
 	// 3-4 Life
-	ebiten.KeyDigit2: {title: "3-4 Life", live: bset(3) | bset(4), dead: bset(3) | bset(4)},
+	ebiten.KeyDigit2: {title: "3-4 Life", live: bset(3) | bset(4), dead: bset(3) | bset(4), age: 2},
 
 	// Highlife
 	//
@@ -175,35 +202,35 @@ var rules = map[ebiten.Key]Rule{
 	//  2. Any dead cell with three or siz live neighbours becomes a live cell.
 	//  4. All other live cells die in the next generation.
 	//     Similarly, all other dead cells stay dead.
-	ebiten.KeyDigit3: {title: "Highlife", live: bset(2) | bset(3), dead: bset(3) | bset(6)},
+	ebiten.KeyDigit3: {title: "Highlife", live: bset(2) | bset(3), dead: bset(3) | bset(6), age: 2},
 
 	// maze
-	ebiten.KeyDigit4: {title: "Maze", live: bset(1) | bset(2) | bset(3) | bset(4) | bset(5), dead: bset(3)},
+	ebiten.KeyDigit4: {title: "Maze", live: bset(1) | bset(2) | bset(3) | bset(4) | bset(5), dead: bset(3), age: 2},
 
 	// mazectric
-	ebiten.KeyDigit5: {title: "Mazectric", live: bset(1) | bset(2) | bset(3) | bset(4), dead: bset(3)},
+	ebiten.KeyDigit5: {title: "Mazectric", live: bset(1) | bset(2) | bset(3) | bset(4), dead: bset(3), age: 2},
 
 	// move
-	ebiten.KeyDigit6: {title: "Move", live: bset(2) | bset(4) | bset(5), dead: bset(3) | bset(6) | bset(8)},
+	ebiten.KeyDigit6: {title: "Move", live: bset(2) | bset(4) | bset(5), dead: bset(3) | bset(6) | bset(8), age: 2},
 
 	// bacteria
-	ebiten.KeyDigit7: {title: "Bacteria", live: bset(4) | bset(5) | bset(6), dead: bset(3) | bset(4)},
+	ebiten.KeyDigit7: {title: "Bacteria", live: bset(4) | bset(5) | bset(6), dead: bset(3) | bset(4), age: 2},
 
 	// eightlife
-	ebiten.KeyDigit8: {title: "EightLife", live: bset(2) | bset(3) | bset(8), dead: bset(3)},
+	ebiten.KeyDigit8: {title: "EightLife", live: bset(2) | bset(3) | bset(8), dead: bset(3), age: 2},
 
 	// serviettes
-	ebiten.KeyDigit9: {title: "Serviettes", live: 0, dead: bset(2) | bset(3) | bset(4)},
+	ebiten.KeyDigit9: {title: "Serviettes", live: 0, dead: bset(2) | bset(3) | bset(4), age: 2},
 
 	// live free or die
-	ebiten.KeyDigit0: {title: "Live Free or Die", live: 0, dead: bset(2)},
+	ebiten.KeyDigit0: {title: "Live Free or Die", live: 0, dead: bset(2), age: 2},
 
 	// live free or die
-	ebiten.KeyNumpad0: {title: "Day and Night", live: bset(3) | bset(4) | bset(6) | bset(7) | bset(8), dead: bset(3) | bset(6) | bset(7) | bset(8)},
+	ebiten.KeyNumpad0: {title: "Day and Night", live: bset(3) | bset(4) | bset(6) | bset(7) | bset(8), dead: bset(3) | bset(6) | bset(7) | bset(8), age: 2},
 }
 
 type Game struct {
-	world matrix.Matrix[bool]
+	world matrix.Matrix[int]
 
 	ww, wh int // window width, height
 	tw, th int // game tile width, height
@@ -240,13 +267,13 @@ func (g *Game) Init(w, h int) (int, int) {
 		g.cell = ebiten.NewImage(g.tw-border, g.th-border)
 		g.cell.Fill(cellColor)
 
-		g.world = matrix.New[bool](hcount, vcount, false)
+		g.world = matrix.New[int](hcount, vcount, false)
 
 		g.speed = 2
 		g.frame = g.speed
 		g.maxspeed = 16
 	} else {
-		g.world.Fill(false)
+		g.world.Fill(CellDead)
 	}
 
 	w = g.world.Width()
@@ -255,7 +282,7 @@ func (g *Game) Init(w, h int) (int, int) {
 	for i := 0; i < len(g.world.Slice())*g.start/100; i++ {
 		x := rand.Intn(w)
 		y := rand.Intn(h)
-		g.world.Set(x, y, true)
+		g.world.Set(x, y, CellAlive)
 	}
 
 	g.gen = 0
@@ -302,7 +329,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	for y := 0; y < g.world.Height(); y++ {
 		for x := 0; x < g.world.Width(); x++ {
-			if g.world.Get(x, y) {
+			if g.world.Get(x, y) > CellDead {
 				sx, sy := g.ScreenCoords(x, y)
 
 				op := &ebiten.DrawImageOptions{}
@@ -324,7 +351,13 @@ func (g *Game) Update() error {
 	switch {
 	case inpututil.MouseButtonPressDuration(ebiten.MouseButtonLeft) > 3: // Mouse click
 		x, y := g.Coords(ebiten.CursorPosition())
-		g.world.Set(x, y, !g.world.Get(x, y))
+		c := g.world.Get(x, y)
+		if c == CellDead {
+			c = CellAlive
+		} else {
+			c = CellDead
+		}
+		g.world.Set(x, y, c)
 		g.redraw = true
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
@@ -378,16 +411,16 @@ func (g *Game) Update() error {
 		for x := 0; x < g.world.Width(); x++ {
 			var live int // live neighbours
 
-			alive := g.world.Get(x, y)
+			age := g.world.Get(x, y)
 
 			for _, c := range g.world.Adjacent(x, y, wrap) {
-				if c.Value {
+				if c.Value > CellDead {
 					live++
 				}
 			}
 
-			if g.rule.Check(alive, live) {
-				nw.Set(x, y, true)
+			if age = g.rule.Check(age, live); age != CellDead {
+				nw.Set(x, y, age)
 				changes = true
 			}
 		}
