@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/gobs/matrix"
@@ -31,7 +32,8 @@ func main() {
 	wsize := flag.Int("window", 1, "Window size (1-4)")
 	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
 	start := flag.Int("start", 10, "Percentage of live cells at start")
-	rule := flag.Int("rule", 1, "Rule: 1=life 2=highlife 3=34life 4=maze 5=mazectric 6=move")
+	rnum := flag.Int("rule", 1, "Rule: 1=life 2=highlife 3=34life 4=maze 5=mazectric 6=move")
+	rstring := flag.String("rulestring", "", "Rule string in the format `title:Bxxx/Sxxx`")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
@@ -41,13 +43,22 @@ func main() {
 	} else if *start > 100 {
 		*start = 100
 	}
-	if *rule < 1 {
-		*rule = 1
-	} else if *rule > 6 {
-		*rule = 6
+	if *rnum < 1 {
+		*rnum = 1
+	} else if *rnum > 6 {
+		*rnum = 6
 	}
 
-	g := &Game{rule: rules[*rule], start: *start}
+	krule := ebiten.KeyDigit0 + ebiten.Key(*rnum)
+	rule := rules[krule]
+
+	if *rstring != "" {
+		if r := ParseRule(*rstring); r.title != "" {
+			rule = r
+		}
+	}
+
+	g := &Game{rule: rule, start: *start}
 
 	sw, sh := ebiten.ScreenSizeInFullscreen()
 
@@ -78,6 +89,58 @@ type Rule struct {
 	dead  int // bitmask of how many live cells are needed to make the cell alive
 }
 
+const (
+	NoState      = 0
+	BirthState   = 1
+	SurviveState = 2
+)
+
+func ParseRule(s string) (r Rule) {
+	parts := strings.Split(s, ":")
+	switch len(parts) {
+	case 1:
+		r.title = "No name"
+
+	case 2:
+		r.title = parts[0]
+		s = parts[1]
+
+	default:
+		panic("invalid rule string")
+	}
+
+	state := NoState
+
+	for _, c := range s {
+		switch state {
+		case NoState:
+			switch c {
+			case 'B', 'b':
+				state = BirthState
+
+			case 'S', 's':
+				state = SurviveState
+			}
+
+		case BirthState:
+			if c >= '0' && c <= '9' {
+				r.dead |= 1 << (c - '0')
+			} else {
+				state = NoState
+			}
+
+		case SurviveState:
+			if c >= '0' && c <= '9' {
+				r.live |= 1 << (c - '0')
+			} else {
+				state = NoState
+			}
+		}
+	}
+
+	return r
+}
+
 func (r Rule) Check(alive bool, live int) bool {
 	bit := 1 << live
 
@@ -92,9 +155,7 @@ func bset(b int) int {
 	return 1 << b
 }
 
-var rules = []Rule{
-	{},
-
+var rules = map[ebiten.Key]Rule{
 	// Conway's Life
 	//
 	// Condesed rules:
@@ -102,10 +163,10 @@ var rules = []Rule{
 	//  2. Any dead cell with three live neighbours becomes a live cell.
 	//  3. All other live cells die in the next generation.
 	//     Similarly, all other dead cells stay dead.
-	{title: "Game of Life", live: bset(2) | bset(3), dead: bset(3)},
+	ebiten.KeyDigit1: {title: "Game of Life", live: bset(2) | bset(3), dead: bset(3)},
 
 	// 3-4 Life
-	{title: "3-4 Life", live: bset(3) | bset(4), dead: bset(3) | bset(4)},
+	ebiten.KeyDigit2: {title: "3-4 Life", live: bset(3) | bset(4), dead: bset(3) | bset(4)},
 
 	// Highlife
 	//
@@ -114,22 +175,31 @@ var rules = []Rule{
 	//  2. Any dead cell with three or siz live neighbours becomes a live cell.
 	//  4. All other live cells die in the next generation.
 	//     Similarly, all other dead cells stay dead.
-	{title: "Highlife", live: bset(2) | bset(3), dead: bset(3) | bset(6)},
+	ebiten.KeyDigit3: {title: "Highlife", live: bset(2) | bset(3), dead: bset(3) | bset(6)},
 
 	// maze
-	{title: "Maze", live: bset(1) | bset(2) | bset(3) | bset(4) | bset(5), dead: bset(3)},
+	ebiten.KeyDigit4: {title: "Maze", live: bset(1) | bset(2) | bset(3) | bset(4) | bset(5), dead: bset(3)},
 
 	// mazectric
-	{title: "Mazectric", live: bset(1) | bset(2) | bset(3) | bset(4), dead: bset(3)},
+	ebiten.KeyDigit5: {title: "Mazectric", live: bset(1) | bset(2) | bset(3) | bset(4), dead: bset(3)},
 
 	// move
-	{title: "Move", live: bset(2) | bset(4) | bset(5), dead: bset(3) | bset(6) | bset(8)},
+	ebiten.KeyDigit6: {title: "Move", live: bset(2) | bset(4) | bset(5), dead: bset(3) | bset(6) | bset(8)},
 
 	// bacteria
-	{title: "Bacteria", live: bset(4) | bset(5) | bset(6), dead: bset(3) | bset(4)},
+	ebiten.KeyDigit7: {title: "Bacteria", live: bset(4) | bset(5) | bset(6), dead: bset(3) | bset(4)},
 
 	// eightlife
-	{title: "EightLife", live: bset(2) | bset(3) | bset(8), dead: bset(3)},
+	ebiten.KeyDigit8: {title: "EightLife", live: bset(2) | bset(3) | bset(8), dead: bset(3)},
+
+	// serviettes
+	ebiten.KeyDigit9: {title: "Serviettes", live: 0, dead: bset(2) | bset(3) | bset(4)},
+
+	// live free or die
+	ebiten.KeyDigit0: {title: "Live Free or Die", live: 0, dead: bset(2)},
+
+	// live free or die
+	ebiten.KeyNumpad0: {title: "Day and Night", live: bset(3) | bset(4) | bset(6) | bset(7) | bset(8), dead: bset(3) | bset(6) | bset(7) | bset(8)},
 }
 
 type Game struct {
@@ -249,6 +319,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Update() error {
+	k := numberKey()
+
 	switch {
 	case inpututil.MouseButtonPressDuration(ebiten.MouseButtonLeft) > 3: // Mouse click
 		x, y := g.Coords(ebiten.CursorPosition())
@@ -265,45 +337,12 @@ func (g *Game) Update() error {
 			g.frame = 1
 		}
 
-	case inpututil.IsKeyJustPressed(ebiten.Key1):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[1]
-
-	case inpututil.IsKeyJustPressed(ebiten.Key2):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[2]
-
-	case inpututil.IsKeyJustPressed(ebiten.Key3):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[3]
-
-	case inpututil.IsKeyJustPressed(ebiten.Key4):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[4]
-
-	case inpututil.IsKeyJustPressed(ebiten.Key5):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[5]
-
-	case inpututil.IsKeyJustPressed(ebiten.Key6):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[6]
-
-	case inpututil.IsKeyJustPressed(ebiten.Key7):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[7]
-
-	case inpututil.IsKeyJustPressed(ebiten.Key8):
-		g.redraw = true
-		g.frame = 1
-		g.rule = rules[8]
+	case k >= ebiten.KeyDigit0:
+		if r := rules[k]; r.title != "" {
+			g.redraw = true
+			g.frame = 1
+			g.rule = r
+		}
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
 		if g.speed > 0 {
@@ -361,4 +400,18 @@ func (g *Game) Update() error {
 	}
 
 	return nil
+}
+
+func numberKey() ebiten.Key {
+	for _, k := range inpututil.PressedKeys() {
+		if k >= ebiten.KeyDigit0 && k <= ebiten.KeyDigit9 {
+			if ebiten.IsKeyPressed(ebiten.KeyControl) {
+				return k - ebiten.KeyDigit0 + ebiten.KeyNumpad0
+			}
+
+			return k
+		}
+	}
+
+	return ebiten.Key(-1)
 }
