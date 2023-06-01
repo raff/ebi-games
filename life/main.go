@@ -327,13 +327,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.canvas.Fill(bgColor)
 
+	scale := float32(g.rule.age)
+
 	for y := 0; y < g.world.Height(); y++ {
 		for x := 0; x < g.world.Width(); x++ {
-			if g.world.Get(x, y) > CellDead {
+			if age := g.world.Get(x, y); age > CellDead {
 				sx, sy := g.ScreenCoords(x, y)
 
 				op := &ebiten.DrawImageOptions{}
 				op.GeoM.Translate(float64(sx+border), float64(sy+border))
+				op.ColorScale.ScaleAlpha(float32(age) / scale)
 				g.canvas.DrawImage(g.cell, op)
 			}
 		}
@@ -414,7 +417,7 @@ func (g *Game) Update() error {
 			age := g.world.Get(x, y)
 
 			for _, c := range g.world.Adjacent(x, y, wrap) {
-				if c.Value > CellDead {
+				if c.Value == CellAlive {
 					live++
 				}
 			}
