@@ -336,7 +336,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 				op := &ebiten.DrawImageOptions{}
 				op.GeoM.Translate(float64(sx+border), float64(sy+border))
-				op.ColorScale.ScaleAlpha(float32(age) / scale)
+				op.ColorScale.ScaleAlpha(float32(age+1) / scale)
 				g.canvas.DrawImage(g.cell, op)
 			}
 		}
