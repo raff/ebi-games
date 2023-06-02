@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"image/color"
 	"math/rand"
-	"os"
 	"strings"
 	"time"
+
+	_ "embed"
 
 	"github.com/gobs/matrix"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -21,6 +22,9 @@ const (
 )
 
 var (
+	//go:embed rules.txt
+	rulesFile string
+
 	cwidth = 4 // cell width
 
 	bgColor   = color.NRGBA{80, 80, 80, 255}
@@ -31,16 +35,8 @@ var (
 	rules = []Rule{ParseRule("Conway's Life:B3/S23")}
 )
 
-func readRules(frules string) {
-	f, err := os.Open(frules)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
+func readRules() {
+	scanner := bufio.NewScanner(strings.NewReader(rulesFile))
 	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {
@@ -60,7 +56,6 @@ func main() {
 	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
 	start := flag.Int("start", 10, "Percentage of live cells at start")
 	rstring := flag.String("rulestring", "", "Rule string in the format `title:Bxxx/Sxxx`")
-	frules := flag.String("rules", "", "Rule file")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
@@ -71,9 +66,7 @@ func main() {
 		*start = 100
 	}
 
-	if *frules != "" {
-		readRules(*frules)
-	}
+	readRules()
 
 	if *rstring != "" {
 		if r := ParseRule(*rstring); r.title != "" {
