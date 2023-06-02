@@ -1,17 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"image/color"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gobs/matrix"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	//"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const (
@@ -26,14 +27,40 @@ var (
 	cellColor = color.NRGBA{250, 250, 250, 255}
 
 	noop = &ebiten.DrawImageOptions{}
+
+	rules = []Rule{ParseRule("Conway's Life:B3/S23")}
 )
+
+func readRules(frules string) {
+	f, err := os.Open(frules)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Split(bufio.ScanLines)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		if r := ParseRule(line); r.title != "" {
+			rules = append(rules, r)
+		}
+	}
+}
 
 func main() {
 	wsize := flag.Int("window", 1, "Window size (1-4)")
 	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
 	start := flag.Int("start", 10, "Percentage of live cells at start")
-	rnum := flag.Int("rule", 1, "Rule: 1=life 2=highlife 3=34life 4=maze 5=mazectric 6=move")
 	rstring := flag.String("rulestring", "", "Rule string in the format `title:Bxxx/Sxxx`")
+	frules := flag.String("rules", "", "Rule file")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
@@ -43,22 +70,18 @@ func main() {
 	} else if *start > 100 {
 		*start = 100
 	}
-	if *rnum < 1 {
-		*rnum = 1
-	} else if *rnum > 6 {
-		*rnum = 6
-	}
 
-	krule := ebiten.KeyDigit0 + ebiten.Key(*rnum)
-	rule := rules[krule]
+	if *frules != "" {
+		readRules(*frules)
+	}
 
 	if *rstring != "" {
 		if r := ParseRule(*rstring); r.title != "" {
-			rule = r
+			rules[0] = r
 		}
 	}
 
-	g := &Game{rule: rule, start: *start}
+	g := &Game{rule: 0, start: *start}
 
 	sw, sh := ebiten.ScreenSizeInFullscreen()
 
@@ -76,7 +99,6 @@ func main() {
 		sh = sh * 7 / 8
 	}
 
-	//ebiten.SetWindowTitle(title)
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init(sw, sh))
@@ -182,53 +204,6 @@ func bset(b int) int {
 	return 1 << b
 }
 
-var rules = map[ebiten.Key]Rule{
-	// Conway's Life
-	//
-	// Condesed rules:
-	//  1. Any live cell with two or three live neighbours survives.
-	//  2. Any dead cell with three live neighbours becomes a live cell.
-	//  3. All other live cells die in the next generation.
-	//     Similarly, all other dead cells stay dead.
-	ebiten.KeyDigit1: {title: "Game of Life", live: bset(2) | bset(3), dead: bset(3), age: 2},
-
-	// 3-4 Life
-	ebiten.KeyDigit2: {title: "3-4 Life", live: bset(3) | bset(4), dead: bset(3) | bset(4), age: 2},
-
-	// Highlife
-	//
-	// Condesed rules:
-	//  1. Any live cell with two or three live neighbours survives.
-	//  2. Any dead cell with three or siz live neighbours becomes a live cell.
-	//  4. All other live cells die in the next generation.
-	//     Similarly, all other dead cells stay dead.
-	ebiten.KeyDigit3: {title: "Highlife", live: bset(2) | bset(3), dead: bset(3) | bset(6), age: 2},
-
-	// maze
-	ebiten.KeyDigit4: {title: "Maze", live: bset(1) | bset(2) | bset(3) | bset(4) | bset(5), dead: bset(3), age: 2},
-
-	// mazectric
-	ebiten.KeyDigit5: {title: "Mazectric", live: bset(1) | bset(2) | bset(3) | bset(4), dead: bset(3), age: 2},
-
-	// move
-	ebiten.KeyDigit6: {title: "Move", live: bset(2) | bset(4) | bset(5), dead: bset(3) | bset(6) | bset(8), age: 2},
-
-	// bacteria
-	ebiten.KeyDigit7: {title: "Bacteria", live: bset(4) | bset(5) | bset(6), dead: bset(3) | bset(4), age: 2},
-
-	// eightlife
-	ebiten.KeyDigit8: {title: "EightLife", live: bset(2) | bset(3) | bset(8), dead: bset(3), age: 2},
-
-	// serviettes
-	ebiten.KeyDigit9: {title: "Serviettes", live: 0, dead: bset(2) | bset(3) | bset(4), age: 2},
-
-	// live free or die
-	ebiten.KeyDigit0: {title: "Live Free or Die", live: 0, dead: bset(2), age: 2},
-
-	// live free or die
-	ebiten.KeyNumpad0: {title: "Day and Night", live: bset(3) | bset(4) | bset(6) | bset(7) | bset(8), dead: bset(3) | bset(6) | bset(7) | bset(8), age: 2},
-}
-
 type Game struct {
 	world matrix.Matrix[int]
 
@@ -240,7 +215,7 @@ type Game struct {
 	redraw bool          // content changed
 
 	start int // % of live cells at gen 0
-	rule  Rule
+	rule  int // index in rules list
 
 	maxspeed int
 	speed    int
@@ -300,12 +275,14 @@ func (g *Game) Print() {
 	fmt.Println("]")
 }
 
-func (g *Game) Score() string {
+func (g *Game) Details() string {
+	title := fmt.Sprintf("%d: %v - ", g.rule, rules[g.rule].title)
+
 	if g.speed == 0 {
-		return fmt.Sprintf("<paused> generation: %v", g.gen)
+		return title + fmt.Sprintf("<paused> generation: %v", g.gen)
 	}
 
-	return fmt.Sprintf("speed: %v generation: %v", g.speed, g.gen)
+	return title + fmt.Sprintf("speed: %v generation: %v", g.speed, g.gen)
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
@@ -327,7 +304,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.canvas.Fill(bgColor)
 
-	scale := float32(g.rule.age)
+	rule := rules[g.rule]
+	scale := float32(rule.age)
 
 	for y := 0; y < g.world.Height(); y++ {
 		for x := 0; x < g.world.Width(); x++ {
@@ -345,7 +323,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(g.canvas, noop)
 	g.redraw = false
 
-	ebiten.SetWindowTitle(g.rule.title + " - " + g.Score())
+	ebiten.SetWindowTitle(g.Details())
 }
 
 func (g *Game) Update() error {
@@ -373,11 +351,27 @@ func (g *Game) Update() error {
 			g.frame = 1
 		}
 
-	case k >= ebiten.KeyDigit0:
-		if r := rules[k]; r.title != "" {
-			g.redraw = true
+	case inpututil.IsKeyJustPressed(ebiten.KeyBracketLeft): // [
+		g.rule--
+		if g.rule < 0 {
+			g.rule = len(rules) - 1
+		}
+		g.frame = 1
+		g.redraw = true
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyBracketRight): // ]
+		g.rule++
+		if g.rule >= len(rules) {
+			g.rule = 0
+		}
+		g.frame = 1
+		g.redraw = true
+
+	case k >= 0:
+		if k < len(rules) {
+			g.rule = k
 			g.frame = 1
-			g.rule = r
+			g.redraw = true
 		}
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyDown):
@@ -409,6 +403,7 @@ func (g *Game) Update() error {
 
 	nw := matrix.NewLike(g.world)
 	changes := false
+	rule := rules[g.rule]
 
 	for y := 0; y < g.world.Height(); y++ {
 		for x := 0; x < g.world.Width(); x++ {
@@ -422,7 +417,7 @@ func (g *Game) Update() error {
 				}
 			}
 
-			if age = g.rule.Check(age, live); age != CellDead {
+			if age = rule.Check(age, live); age != CellDead {
 				nw.Set(x, y, age)
 				changes = true
 			}
@@ -438,16 +433,16 @@ func (g *Game) Update() error {
 	return nil
 }
 
-func numberKey() ebiten.Key {
+func numberKey() int {
 	for _, k := range inpututil.PressedKeys() {
 		if k >= ebiten.KeyDigit0 && k <= ebiten.KeyDigit9 {
 			if ebiten.IsKeyPressed(ebiten.KeyControl) {
-				return k - ebiten.KeyDigit0 + ebiten.KeyNumpad0
+				return int(k-ebiten.KeyDigit0) + 10
 			}
 
-			return k
+			return int(k - ebiten.KeyDigit0)
 		}
 	}
 
-	return ebiten.Key(-1)
+	return -1
 }
