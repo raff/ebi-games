@@ -95,6 +95,7 @@ func main() {
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init(sw, sh))
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.RunGame(g)
 }
 
@@ -286,8 +287,20 @@ func (g *Game) ScreenCoords(x, y int) (int, int) {
 	return x * g.tw, g.world.Fix(y) * g.th
 }
 
+func abs(i int) int {
+	if i < 0 {
+		return -i
+	}
+
+	return i
+}
+
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return g.ww, g.wh
+	if (outsideWidth-g.ww) <= (cwidth+border) && (outsideHeight-g.wh) <= (cwidth+border) {
+		return g.ww, g.wh
+	}
+
+	return g.Init(outsideWidth, outsideHeight)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
