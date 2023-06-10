@@ -218,6 +218,8 @@ type Game struct {
 }
 
 func (g *Game) Init(w, h int) (int, int) {
+	gen := true
+
 	if w > 0 && h > 0 {
 		g.ww, g.wh = w, h
 
@@ -236,25 +238,49 @@ func (g *Game) Init(w, h int) (int, int) {
 		g.cell = ebiten.NewImage(g.tw-border, g.th-border)
 		g.cell.Fill(cellColor)
 
+		if g.maxspeed == 0 {
+			g.maxspeed = 16
+			g.speed = 2
+			g.frame = g.speed
+		}
+
+		currw := g.world
+		cw, ch := currw.Width(), currw.Height()
+
 		g.world = matrix.New[int](hcount, vcount, false)
 
-		g.speed = 2
-		g.frame = g.speed
-		g.maxspeed = 16
+		if cw != 0 && ch != 0 {
+			if hcount >= cw || vcount >= ch {
+				x := (hcount - cw) / 2
+				y := (vcount - ch) / 2
+
+				g.world.Copy(x, y, currw)
+			} else {
+				x := (cw - hcount) / 2
+				y := (ch - vcount) / 2
+
+				g.world = currw.Submatrix(x, y, hcount, vcount)
+			}
+
+			gen = false
+		}
 	} else {
 		g.world.Fill(CellDead)
 	}
 
-	w = g.world.Width()
-	h = g.world.Height()
+	if gen {
+		w = g.world.Width()
+		h = g.world.Height()
 
-	for i := 0; i < len(g.world.Slice())*g.start/100; i++ {
-		x := rand.Intn(w)
-		y := rand.Intn(h)
-		g.world.Set(x, y, CellAlive)
+		for i := 0; i < len(g.world.Slice())*g.start/100; i++ {
+			x := rand.Intn(w)
+			y := rand.Intn(h)
+			g.world.Set(x, y, CellAlive)
+		}
+
+		g.gen = 0
 	}
 
-	g.gen = 0
 	return g.ww, g.wh
 }
 
@@ -296,7 +322,7 @@ func abs(i int) int {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	if (outsideWidth-g.ww) <= (cwidth+border) && (outsideHeight-g.wh) <= (cwidth+border) {
+	if abs(outsideWidth-g.ww) <= (cwidth+border) && abs(outsideHeight-g.wh) <= (cwidth+border) {
 		return g.ww, g.wh
 	}
 
