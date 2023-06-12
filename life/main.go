@@ -398,17 +398,17 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.mirror {
 		op := noop
 		op.GeoM.Scale(-1, 1)
-		op.GeoM.Translate(float64(g.ww), 0)
+		op.GeoM.Translate(float64(g.ww-border), 0)
 		screen.DrawImage(g.canvas, op)
 
 		op.GeoM.Reset()
 		op.GeoM.Scale(1, -1)
-		op.GeoM.Translate(0, float64(g.wh))
+		op.GeoM.Translate(0, float64(g.wh-border))
 		screen.DrawImage(g.canvas, op)
 
 		op.GeoM.Reset()
 		op.GeoM.Scale(-1, -1)
-		op.GeoM.Translate(float64(g.ww), float64(g.wh))
+		op.GeoM.Translate(float64(g.ww-border), float64(g.wh-border))
 		screen.DrawImage(g.canvas, op)
 
 		op.GeoM.Reset()
