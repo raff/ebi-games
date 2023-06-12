@@ -56,6 +56,8 @@ func main() {
 	flag.IntVar(&cwidth, "cell", cwidth, "Cell size")
 	start := flag.Int("start", 10, "Percentage of live cells at start")
 	rstring := flag.String("rulestring", "", "Rule string in the format `title:Bxxx/Sxxx`")
+	mirror := flag.Bool("mirror", false, "mirror world to 4 quadrants (kaleidoscope)")
+	color := flag.Bool("color", false, "use colors for cell age")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
@@ -74,7 +76,7 @@ func main() {
 		}
 	}
 
-	g := &Game{rule: 0, start: *start}
+	g := &Game{rule: 0, start: *start, mirror: *mirror, color: *color}
 
 	sw, sh := ebiten.ScreenSizeInFullscreen()
 
@@ -208,8 +210,10 @@ type Game struct {
 	cell   *ebiten.Image // cell image
 	redraw bool          // content changed
 
-	start int // % of live cells at gen 0
-	rule  int // index in rules list
+	start  int  // % of live cells at gen 0
+	rule   int  // index in rules list
+	mirror bool // mirror life's world in to quadrants
+	color  bool // use colors for cell age
 
 	maxspeed int
 	speed    int
@@ -226,13 +230,30 @@ func (g *Game) Init(w, h int) (int, int) {
 		hcount := g.ww / cwidth
 		vcount := g.wh / cwidth
 
+		if g.mirror {
+			// since we are dividing in half, make sure we have an even number of cells
+			if hcount%2 != 0 {
+				hcount--
+			}
+			if vcount%2 != 0 {
+				vcount--
+			}
+		}
+
 		g.tw = g.ww / hcount
 		g.th = g.wh / vcount
 
 		g.ww = (g.tw * hcount) + border
 		g.wh = (g.th * vcount) + border
 
-		g.canvas = ebiten.NewImage(g.ww, g.wh)
+		if g.mirror {
+			g.canvas = ebiten.NewImage((g.ww-border)/2, (g.wh-border)/2)
+			hcount /= 2
+			vcount /= 2
+		} else {
+			g.canvas = ebiten.NewImage(g.ww, g.wh)
+		}
+
 		g.canvas.Fill(bgColor)
 
 		g.cell = ebiten.NewImage(g.tw-border, g.th-border)
@@ -339,6 +360,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	rule := rules[g.rule]
 	scale := float32(rule.age)
 
+	rscale := rand.Int()
+	scaleR := rscale&1 != 0
+	scaleG := rscale&2 != 0
+	scaleB := rscale&4 != 0
+
 	for y := 0; y < g.world.Height(); y++ {
 		for x := 0; x < g.world.Width(); x++ {
 			if age := g.world.Get(x, y); age > CellDead {
@@ -346,13 +372,48 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 				op := &ebiten.DrawImageOptions{}
 				op.GeoM.Translate(float64(sx+border), float64(sy+border))
-				op.ColorScale.ScaleAlpha(float32(age+1) / scale)
+
+				r := float32(age+1) / scale
+
+				if g.color {
+					if scaleR {
+						op.ColorScale.SetR(r)
+					}
+					if scaleG {
+						op.ColorScale.SetG(r)
+					}
+					if scaleB {
+						op.ColorScale.SetB(r)
+					}
+				} else {
+					op.ColorScale.ScaleAlpha(r)
+				}
+
 				g.canvas.DrawImage(g.cell, op)
 			}
 		}
 	}
 
 	screen.DrawImage(g.canvas, noop)
+	if g.mirror {
+		op := noop
+		op.GeoM.Scale(-1, 1)
+		op.GeoM.Translate(float64(g.ww), 0)
+		screen.DrawImage(g.canvas, op)
+
+		op.GeoM.Reset()
+		op.GeoM.Scale(1, -1)
+		op.GeoM.Translate(0, float64(g.wh))
+		screen.DrawImage(g.canvas, op)
+
+		op.GeoM.Reset()
+		op.GeoM.Scale(-1, -1)
+		op.GeoM.Translate(float64(g.ww), float64(g.wh))
+		screen.DrawImage(g.canvas, op)
+
+		op.GeoM.Reset()
+	}
+
 	g.redraw = false
 
 	ebiten.SetWindowTitle(g.Details())
