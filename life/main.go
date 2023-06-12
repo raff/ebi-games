@@ -327,6 +327,15 @@ func (g *Game) Details() string {
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
+	if g.mirror {
+		cw, ch := g.canvas.Size()
+		if x >= cw {
+			x = g.ww - x
+		}
+		if y >= ch {
+			y = g.wh - y
+		}
+	}
 	return x / g.tw, g.world.Fix(y / g.th)
 }
 
