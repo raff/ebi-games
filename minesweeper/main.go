@@ -59,8 +59,13 @@ type Game struct {
 	canvas *ebiten.Image
 	redraw bool
 
+	cw int
+	ch int
+
 	ww int
 	wh int
+
+	scale float64
 
 	drawOp ebiten.DrawImageOptions
 }
@@ -88,18 +93,23 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 	}
 
 	if g.ww == 0 {
-		g.ww = hcount*cellw + border + border
-		g.wh = vcount*cellh + border + border
+		g.cw = hcount * cellw
+		g.ch = vcount * cellh
+
+		g.ww = g.cw + border + border
+		g.wh = g.cw + border + border
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(background)
 
 		g.cells = matrix.New[State](hcount, vcount, false)
 
-		if scale != 1.0 {
-			g.drawOp.GeoM.Scale(scale, scale)
-			g.ww = int(float64(g.ww) * scale)
-			g.wh = int(float64(g.wh) * scale)
+		g.scale = scale
+
+		if g.scale != 1.0 {
+			g.drawOp.GeoM.Scale(g.scale, g.scale)
+			g.ww = int(float64(g.ww) * g.scale)
+			g.wh = int(float64(g.wh) * g.scale)
 		}
 	}
 
@@ -116,6 +126,20 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 
 	g.redraw = true
 	return g.ww, g.wh
+}
+
+func (g *Game) Coords(x, y int) (int, int) {
+	x = int(float64(x) / g.scale)
+	y = int(float64(y) / g.scale)
+
+	if x < border || y < border {
+		return -1, -1
+	}
+	if x > g.cw+border || y > g.ch+border {
+		return -1, -1
+	}
+
+	return (x - border) / cellw, g.cells.Fix((y - border) / cellh)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -152,6 +176,42 @@ func (g *Game) Update() error {
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
 		g.Init(0, 0, 0)
+
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
+		x, y := g.Coords(ebiten.CursorPosition())
+		if x < 0 {
+			break
+		}
+
+		switch g.cells.Get(x, y) {
+		case Unchecked:
+			g.cells.Set(x, y, Empty)
+			g.redraw = true
+
+		case Mine:
+			g.cells.Set(x, y, Exploded)
+			g.redraw = true
+		}
+
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight): // Mouse click
+		x, y := g.Coords(ebiten.CursorPosition())
+		if x < 0 {
+			break
+		}
+
+		switch g.cells.Get(x, y) {
+		case Unchecked:
+			g.cells.Set(x, y, Flag)
+			g.redraw = true
+
+		case Flag:
+			g.cells.Set(x, y, Unsure)
+			g.redraw = true
+
+		case Unsure:
+			g.cells.Set(x, y, Unchecked)
+			g.redraw = true
+		}
 	}
 
 	return nil
