@@ -528,7 +528,7 @@ func (g *Game) Update() error {
 
 			age := g.world.Get(x, y)
 
-			for _, c := range g.world.Adjacent(x, y, wrap) {
+			for _, c := range g.world.Moore(x, y, wrap) {
 				if c.Value == CellAlive {
 					live++
 				}
