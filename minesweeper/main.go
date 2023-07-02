@@ -67,6 +67,7 @@ type Game struct {
 
 	canvas *ebiten.Image
 	redraw bool
+	done   bool
 
 	cw int
 	ch int
@@ -153,6 +154,7 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 	}
 
 	g.redraw = true
+	g.done = false
 	return g.ww, g.wh
 }
 
@@ -185,7 +187,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
 			s := g.cells.Get(x, y)
-			if s == Mine {
+			if s == Mine && !g.done {
 				s = Unchecked
 			}
 
@@ -200,6 +202,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(g.canvas, &g.drawOp)
 }
 
+func (g *Game) countMines(x, y int) (int, []matrix.Cell[State]) {
+	count := 0
+	cells := g.cells.Moore(x, y, false)
+
+	for _, c := range cells {
+		if c.Value == Mine {
+			count++
+		}
+	}
+
+	return count, cells
+}
+
 func (g *Game) Update() error {
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
@@ -209,6 +224,10 @@ func (g *Game) Update() error {
 		g.Init(0, 0, 0)
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
+		if g.done {
+			break
+		}
+
 		x, y := g.Coords(ebiten.CursorPosition())
 		if x < 0 {
 			break
@@ -216,28 +235,38 @@ func (g *Game) Update() error {
 
 		switch g.cells.Get(x, y) {
 		case Unchecked:
-			count := 0
-			for _, c := range g.cells.Moore(x, y, false) {
-				if c.Value == Mine {
-					count++
-				}
-			}
-
-			s := Empty
+			count, cells := g.countMines(x, y)
 
 			if count > 0 {
-				s = Count1 + State(count-1)
+				s := Count1 + State(count-1)
+				g.cells.Set(x, y, s)
+			} else {
+				for _, c := range cells {
+					cc, _ := g.countMines(c.X, c.Y)
+					if cc > 0 {
+						s := Count1 + State(cc-1)
+						g.cells.Set(c.X, c.Y, s)
+					} else {
+						g.cells.Set(c.X, c.Y, Empty)
+					}
+				}
+
+				g.cells.Set(x, y, Empty)
 			}
 
-			g.cells.Set(x, y, s)
 			g.redraw = true
 
 		case Mine:
 			g.cells.Set(x, y, Exploded)
 			g.redraw = true
+			g.done = true
 		}
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight): // Mouse click
+		if g.done {
+			break
+		}
+
 		x, y := g.Coords(ebiten.CursorPosition())
 		if x < 0 {
 			break
