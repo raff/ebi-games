@@ -39,6 +39,15 @@ const (
 	Mine
 	Exploded
 	Nomine
+
+	Count1
+	Count2
+	Count3
+	Count4
+	Count5
+	Count6
+	Count7
+	Count8
 )
 
 var (
@@ -84,6 +93,25 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 
 		ebimg := ebiten.NewImageFromImage(img)
 		p := image.Rect(0, 0, cellw, cellh)
+
+		for x := 0; x < iw; x += cellw {
+			tile := ebimg.SubImage(p).(*ebiten.Image)
+			tiles = append(tiles, tile)
+			p = p.Add(image.Pt(cellw, 0))
+		}
+
+		img, err = png.Decode(bytes.NewBuffer(pngCounts))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		iw, ih = img.Bounds().Dx(), img.Bounds().Dy()
+		if ih != cellh || iw != cellw*8 {
+			log.Fatalf("invalid cells image dimension: expected %vx%v got %vx%v", iw, ih, cellw*8, cellh)
+		}
+
+		ebimg = ebiten.NewImageFromImage(img)
+		p = image.Rect(0, 0, cellw, cellh)
 
 		for x := 0; x < iw; x += cellw {
 			tile := ebimg.SubImage(p).(*ebiten.Image)
@@ -157,6 +185,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for y := 0; y < vcount; y++ {
 		for x := 0; x < hcount; x++ {
 			s := g.cells.Get(x, y)
+			if s == Mine {
+				s = Unchecked
+			}
 
 			g.canvas.DrawImage(tiles[s], op)
 			op.GeoM.Translate(cellw, 0)
@@ -185,7 +216,20 @@ func (g *Game) Update() error {
 
 		switch g.cells.Get(x, y) {
 		case Unchecked:
-			g.cells.Set(x, y, Empty)
+			count := 0
+			for _, c := range g.cells.Moore(x, y, false) {
+				if c.Value == Mine {
+					count++
+				}
+			}
+
+			s := Empty
+
+			if count > 0 {
+				s = Count1 + State(count-1)
+			}
+
+			g.cells.Set(x, y, s)
 			g.redraw = true
 
 		case Mine:
