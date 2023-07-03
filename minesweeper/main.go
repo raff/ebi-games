@@ -26,9 +26,13 @@ const (
 
 	digitw = 13
 	digith = 23
+
+	facew = 26
+	faceh = 26
 )
 
 type State int
+type PlayState int
 
 const (
 	Unchecked State = iota
@@ -54,6 +58,14 @@ const (
 	MineUnsureChecked
 )
 
+const (
+	Playing PlayState = iota
+	Clicked
+	Surprise
+	Won
+	Lost
+)
+
 type Level struct {
 	width  int
 	height int
@@ -70,10 +82,14 @@ var (
 	//go:embed assets/ms_digits.png
 	pngDigits []byte
 
+	//go:embed assets/ms_faces.png
+	pngFaces []byte
+
 	tiles  []*ebiten.Image
 	digits []*ebiten.Image
+	faces  []*ebiten.Image
 
-	background = color.NRGBA{127, 127, 127, 255}
+	background = color.NRGBA{192, 192, 192, 255}
 
 	levels = []Level{
 		{9, 9, 10},
@@ -91,6 +107,8 @@ type Game struct {
 	redraw bool
 	done   bool
 
+	state PlayState
+
 	start   time.Time
 	elapsed int
 
@@ -99,6 +117,9 @@ type Game struct {
 
 	tx int // timer area start (x)
 	ty int // timer area start (y)
+
+	fx int // face area start (x)
+	fy int // face area start (y)
 
 	cw int // cells area width
 	ch int // cells area height
@@ -179,6 +200,26 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 			digits = append(digits, digit)
 			p = p.Add(image.Pt(digitw, 0))
 		}
+
+		img, err = png.Decode(bytes.NewBuffer(pngFaces))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		iw, ih = img.Bounds().Dx(), img.Bounds().Dy()
+		if ih != faceh || iw != facew*5 {
+			log.Fatalf("invalid faces image dimension: expected %vx%v got %vx%v", iw, ih, facew*5, faceh)
+		}
+
+		ebimg = ebiten.NewImageFromImage(img)
+		p = image.Rect(0, 0, facew, faceh)
+
+		// FaceUp, FaceDown, etc.
+		for x := 0; x < iw; x += facew {
+			face := ebimg.SubImage(p).(*ebiten.Image)
+			faces = append(faces, face)
+			p = p.Add(image.Pt(facew, 0))
+		}
 	}
 
 	if g.ww == 0 {
@@ -196,6 +237,9 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 
 		g.tx = g.ww - border - (digitw * 3) // 3 digits timer
 		g.ty = border
+
+		g.fx = (g.ww / 2) - (facew / 2)
+		g.fy = border
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(background)
@@ -222,6 +266,7 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 		}
 	}
 
+	g.state = Playing
 	g.redraw = true
 	g.done = false
 	return g.ww, g.wh
@@ -291,12 +336,17 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	if found == g.level.mines {
+		g.state = Won
 		g.done = true
 		g.redraw = true
 	}
 
 	g.drawDigits(g.mx, g.my, found)
 	g.drawDigits(g.tx, g.ty, g.elapsed)
+
+	op.GeoM.Reset()
+	op.GeoM.Translate(float64(g.fx), float64(g.fy))
+	g.canvas.DrawImage(faces[g.state], op)
 
 	screen.DrawImage(g.canvas, &g.drawOp)
 }
@@ -365,6 +415,7 @@ func (g *Game) Update() error {
 
 		case Mine:
 			g.cells.Set(x, y, Exploded)
+			g.state = Lost
 			g.redraw = true
 			g.done = true
 		}
