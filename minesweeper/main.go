@@ -207,7 +207,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for y := 0; y < g.level.height; y++ {
 		for x := 0; x < g.level.width; x++ {
 			s := g.cells.Get(x, y)
-			if s == Mine && !g.done {
+			if g.done {
+				if s == Flag {
+					s = Nomine
+				}
+			} else if s == Mine {
 				s = Unchecked
 			}
 
@@ -227,12 +231,29 @@ func (g *Game) countMines(x, y int) (int, []matrix.Cell[State]) {
 	cells := g.cells.Moore(x, y, false)
 
 	for _, c := range cells {
-		if c.Value == Mine {
+		if c.Value == Mine || c.Value >= MineFlag {
 			count++
 		}
 	}
 
 	return count, cells
+}
+
+func (g *Game) expand(cells []matrix.Cell[State]) {
+	for _, c := range cells {
+		if c.Value != Unchecked {
+			continue
+		}
+
+		cc, ccells := g.countMines(c.X, c.Y)
+		if cc > 0 {
+			s := Count1 + State(cc-1)
+			g.cells.Set(c.X, c.Y, s)
+		} else {
+			g.cells.Set(c.X, c.Y, Empty)
+			g.expand(ccells)
+		}
+	}
 }
 
 func (g *Game) Update() error {
@@ -261,21 +282,8 @@ func (g *Game) Update() error {
 				s := Count1 + State(count-1)
 				g.cells.Set(x, y, s)
 			} else {
-				for _, c := range cells {
-					if c.Value != Unchecked {
-						continue
-					}
-
-					cc, _ := g.countMines(c.X, c.Y)
-					if cc > 0 {
-						s := Count1 + State(cc-1)
-						g.cells.Set(c.X, c.Y, s)
-					} else {
-						g.cells.Set(c.X, c.Y, Empty)
-					}
-				}
-
 				g.cells.Set(x, y, Empty)
+				g.expand(cells)
 			}
 
 			g.redraw = true
