@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	//"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -22,6 +23,9 @@ const (
 
 	cellw = 16
 	cellh = 16
+
+	digitw = 13
+	digith = 23
 )
 
 type State int
@@ -63,7 +67,11 @@ var (
 	//go:embed assets/ms_counts.png
 	pngCounts []byte
 
-	tiles []*ebiten.Image
+	//go:embed assets/ms_digits.png
+	pngDigits []byte
+
+	tiles  []*ebiten.Image
+	digits []*ebiten.Image
 
 	background = color.NRGBA{127, 127, 127, 255}
 
@@ -83,11 +91,23 @@ type Game struct {
 	redraw bool
 	done   bool
 
-	cw int
-	ch int
+	start   time.Time
+	elapsed int
 
-	ww int
-	wh int
+	mx int // mine count area start (x)
+	my int // mine count area start (y)
+
+	tx int // timer area start (x)
+	ty int // timer area start (y)
+
+	cw int // cells area width
+	ch int // cells area height
+
+	cx int // cells area start (x)
+	cy int // cells area start (y)
+
+	ww int // window width
+	wh int // window height
 
 	scale float64
 
@@ -139,14 +159,43 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 		tiles = append(tiles, tiles[Flag])          // MineFlag
 		tiles = append(tiles, tiles[Unsure])        // MineUnsure
 		tiles = append(tiles, tiles[UnsureChecked]) // MineUnsureChecked
+
+		img, err = png.Decode(bytes.NewBuffer(pngDigits))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		iw, ih = img.Bounds().Dx(), img.Bounds().Dy()
+		if ih != digith || iw != digitw*10 {
+			log.Fatalf("invalid digits image dimension: expected %vx%v got %vx%v", iw, ih, digitw*10, digith)
+		}
+
+		ebimg = ebiten.NewImageFromImage(img)
+		p = image.Rect(0, 0, digitw, digith)
+
+		// 0 to 10
+		for x := 0; x < iw; x += digitw {
+			digit := ebimg.SubImage(p).(*ebiten.Image)
+			digits = append(digits, digit)
+			p = p.Add(image.Pt(digitw, 0))
+		}
 	}
 
 	if g.ww == 0 {
 		g.cw = g.level.width * cellw
 		g.ch = g.level.height * cellh
 
-		g.ww = g.cw + border + border
-		g.wh = g.ch + border + border
+		g.cx = border
+		g.cy = border + digith + border
+
+		g.ww = g.cx + g.cw + border
+		g.wh = g.cy + g.ch + border
+
+		g.mx = border
+		g.my = border
+
+		g.tx = g.ww - border - (digitw * 3) // 3 digits timer
+		g.ty = border
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(background)
@@ -182,18 +231,30 @@ func (g *Game) Coords(x, y int) (int, int) {
 	x = int(float64(x) / g.scale)
 	y = int(float64(y) / g.scale)
 
-	if x < border || y < border {
+	if x < g.cx || y < g.cy {
 		return -1, -1
 	}
-	if x > g.cw+border || y > g.ch+border {
+	if x > g.cx+g.cw || y > g.cy+g.ch {
 		return -1, -1
 	}
 
-	return (x - border) / cellw, g.cells.Fix((y - border) / cellh)
+	return (x - g.cx) / cellw, g.cells.Fix((y - g.cy) / cellh)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return g.ww, g.wh
+}
+
+func (g *Game) drawDigits(x, y, n int) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(x), float64(y))
+
+	for x := 100; x > 0; x /= 10 {
+		d := (n / x) % 10
+
+		g.canvas.DrawImage(digits[d], op)
+		op.GeoM.Translate(digitw, 0)
+	}
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -202,7 +263,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(border, border)
+	op.GeoM.Translate(float64(g.cx), float64(g.cy))
+
+	found := 0
 
 	for y := 0; y < g.level.height; y++ {
 		for x := 0; x < g.level.width; x++ {
@@ -210,9 +273,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			if g.done {
 				if s == Flag {
 					s = Nomine
+				} else if s == MineFlag {
+					found++
 				}
 			} else if s == Mine {
 				s = Unchecked
+			} else if s == Flag || s == MineFlag {
+				found++
 			}
 
 			g.canvas.DrawImage(tiles[s], op)
@@ -222,6 +289,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		op.GeoM.SetElement(0, 2, border)
 		op.GeoM.Translate(0, cellh)
 	}
+
+	if found == g.level.mines {
+		g.done = true
+		g.redraw = true
+	}
+
+	g.drawDigits(g.mx, g.my, found)
+	g.drawDigits(g.tx, g.ty, g.elapsed)
 
 	screen.DrawImage(g.canvas, &g.drawOp)
 }
@@ -294,6 +369,12 @@ func (g *Game) Update() error {
 			g.done = true
 		}
 
+		if g.start.IsZero() {
+			g.start = time.Now()
+		} else {
+			g.elapsed = int(time.Now().Sub(g.start) / time.Second)
+		}
+
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight): // Mouse click
 		if g.done {
 			break
@@ -328,6 +409,12 @@ func (g *Game) Update() error {
 		case MineUnsure:
 			g.cells.Set(x, y, Mine)
 			g.redraw = true
+		}
+
+		if g.start.IsZero() {
+			g.start = time.Now()
+		} else {
+			g.elapsed = int(time.Now().Sub(g.start) / time.Second)
 		}
 	}
 
