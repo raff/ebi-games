@@ -18,14 +18,10 @@ import (
 )
 
 const (
-	border = 8
+	border = 4
 
 	cellw = 16
 	cellh = 16
-
-	hcount = 10
-	vcount = 10
-	nmines = 20
 )
 
 type State int
@@ -54,6 +50,12 @@ const (
 	MineUnsureChecked
 )
 
+type Level struct {
+	width  int
+	height int
+	mines  int
+}
+
 var (
 	//go:embed assets/ms_cells.png
 	pngCells []byte
@@ -63,10 +65,18 @@ var (
 
 	tiles []*ebiten.Image
 
-	background = color.NRGBA{80, 80, 80, 255}
+	background = color.NRGBA{127, 127, 127, 255}
+
+	levels = []Level{
+		{9, 9, 10},
+		{16, 16, 40},
+		{30, 16, 99},
+	}
 )
 
 type Game struct {
+	level Level
+
 	cells matrix.Matrix[State]
 
 	canvas *ebiten.Image
@@ -132,16 +142,16 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 	}
 
 	if g.ww == 0 {
-		g.cw = hcount * cellw
-		g.ch = vcount * cellh
+		g.cw = g.level.width * cellw
+		g.ch = g.level.height * cellh
 
 		g.ww = g.cw + border + border
-		g.wh = g.cw + border + border
+		g.wh = g.ch + border + border
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(background)
 
-		g.cells = matrix.New[State](hcount, vcount, false)
+		g.cells = matrix.New[State](g.level.width, g.level.height, false)
 
 		g.scale = scale
 
@@ -156,7 +166,7 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 	perms := rand.Perm(len(states))
 
 	for i, p := range perms {
-		if p < nmines {
+		if p < g.level.mines {
 			states[i] = Mine
 		} else {
 			states[i] = Unchecked
@@ -194,8 +204,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(border, border)
 
-	for y := 0; y < vcount; y++ {
-		for x := 0; x < hcount; x++ {
+	for y := 0; y < g.level.height; y++ {
+		for x := 0; x < g.level.width; x++ {
 			s := g.cells.Get(x, y)
 			if s == Mine && !g.done {
 				s = Unchecked
@@ -252,9 +262,9 @@ func (g *Game) Update() error {
 				g.cells.Set(x, y, s)
 			} else {
 				for _, c := range cells {
-                                        if c.Value != Unchecked {
-                                                continue
-                                        }
+					if c.Value != Unchecked {
+						continue
+					}
 
 					cc, _ := g.countMines(c.X, c.Y)
 					if cc > 0 {
@@ -318,11 +328,18 @@ func (g *Game) Update() error {
 
 func main() {
 	scale := flag.Float64("scale", 2, "Window scale")
+	level := flag.Int("level", 0, "0-beginner, 1-intermediat, 2-expert")
 	flag.Parse()
 
 	rand.Seed(time.Now().Unix())
 
-	g := &Game{}
+	if *level < 0 {
+		*level = 0
+	} else if *level >= len(levels) {
+		*level = len(levels) - 1
+	}
+
+	g := &Game{level: levels[*level]}
 	ww, wh := ebiten.ScreenSizeInFullscreen()
 
 	ebiten.SetWindowTitle("Minesweeper")
