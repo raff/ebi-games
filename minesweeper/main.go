@@ -252,6 +252,10 @@ func (g *Game) Update() error {
 				g.cells.Set(x, y, s)
 			} else {
 				for _, c := range cells {
+                                        if c.Value != Unchecked {
+                                                continue
+                                        }
+
 					cc, _ := g.countMines(c.X, c.Y)
 					if cc > 0 {
 						s := Count1 + State(cc-1)
