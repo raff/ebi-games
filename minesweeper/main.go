@@ -48,6 +48,10 @@ const (
 	Count6
 	Count7
 	Count8
+
+	MineFlag
+	MineUnsure
+	MineUnsureChecked
 )
 
 var (
@@ -95,6 +99,7 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 		ebimg := ebiten.NewImageFromImage(img)
 		p := image.Rect(0, 0, cellw, cellh)
 
+		// Unchecked, Empty, Flag, etc.
 		for x := 0; x < iw; x += cellw {
 			tile := ebimg.SubImage(p).(*ebiten.Image)
 			tiles = append(tiles, tile)
@@ -114,11 +119,16 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 		ebimg = ebiten.NewImageFromImage(img)
 		p = image.Rect(0, 0, cellw, cellh)
 
+		// Count1 to Count8
 		for x := 0; x < iw; x += cellw {
 			tile := ebimg.SubImage(p).(*ebiten.Image)
 			tiles = append(tiles, tile)
 			p = p.Add(image.Pt(cellw, 0))
 		}
+
+		tiles = append(tiles, tiles[Flag])          // MineFlag
+		tiles = append(tiles, tiles[Unsure])        // MineUnsure
+		tiles = append(tiles, tiles[UnsureChecked]) // MineUnsureChecked
 	}
 
 	if g.ww == 0 {
@@ -283,6 +293,18 @@ func (g *Game) Update() error {
 
 		case Unsure:
 			g.cells.Set(x, y, Unchecked)
+			g.redraw = true
+
+		case Mine:
+			g.cells.Set(x, y, MineFlag)
+			g.redraw = true
+
+		case MineFlag:
+			g.cells.Set(x, y, MineUnsure)
+			g.redraw = true
+
+		case MineUnsure:
+			g.cells.Set(x, y, Mine)
 			g.redraw = true
 		}
 	}
