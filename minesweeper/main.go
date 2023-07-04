@@ -266,13 +266,31 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 		}
 	}
 
+	g.start = time.Time{}
+	g.elapsed = 0
+
 	g.state = Playing
 	g.redraw = true
 	g.done = false
 	return g.ww, g.wh
 }
 
-func (g *Game) Coords(x, y int) (int, int) {
+func (g *Game) FaceClicked(x, y int) bool {
+	x = int(float64(x) / g.scale)
+	y = int(float64(y) / g.scale)
+
+	if x < g.fx || y < g.fy {
+		return false
+	}
+
+	if x >= g.fx+facew || y >= g.fy+faceh {
+		return false
+	}
+
+	return true
+}
+
+func (g *Game) CellCoords(x, y int) (int, int) {
 	x = int(float64(x) / g.scale)
 	y = int(float64(y) / g.scale)
 
@@ -316,9 +334,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		for x := 0; x < g.level.width; x++ {
 			s := g.cells.Get(x, y)
 			if g.done {
-				if s == Flag {
+				switch s {
+				case Unchecked, Unsure:
+					s = Empty
+				case Flag:
 					s = Nomine
-				} else if s == MineFlag {
+				case MineFlag:
 					found++
 				}
 			} else if s == Mine {
@@ -335,7 +356,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		op.GeoM.Translate(0, cellh)
 	}
 
-	if found == g.level.mines {
+	if !g.done && found == g.level.mines {
 		g.state = Won
 		g.done = true
 		g.redraw = true
@@ -389,12 +410,23 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
 		g.Init(0, 0, 0)
 
+	case inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft): // Mouse release
+		if g.FaceClicked(ebiten.CursorPosition()) {
+			g.Init(0, 0, 0)
+			break
+		}
+
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
+		if g.FaceClicked(ebiten.CursorPosition()) {
+			g.state = Clicked
+			break
+		}
+
 		if g.done {
 			break
 		}
 
-		x, y := g.Coords(ebiten.CursorPosition())
+		x, y := g.CellCoords(ebiten.CursorPosition())
 		if x < 0 {
 			break
 		}
@@ -431,7 +463,7 @@ func (g *Game) Update() error {
 			break
 		}
 
-		x, y := g.Coords(ebiten.CursorPosition())
+		x, y := g.CellCoords(ebiten.CursorPosition())
 		if x < 0 {
 			break
 		}
