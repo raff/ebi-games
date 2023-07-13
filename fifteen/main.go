@@ -52,14 +52,14 @@ func readTiles() (int, int) {
 		p = p.Add(image.Pt(-iw, th))
 	}
 
-        l := len(tiles)
+	l := len(tiles)
 
 	// assuming the last tile is transparent (and empty) fill it with background color
 	tile := tiles[l-1]
 	tile.Fill(background)
 
-        // also, move last tile (empty) to zero position
-        tiles = append(tiles[l-1:], tiles[:l-1]...)
+	// also, move last tile (empty) to zero position
+	tiles = append(tiles[l-1:], tiles[:l-1]...)
 
 	return tw, th
 }
@@ -88,45 +88,26 @@ zero:
 	}
 
 	for i := 0; i < n; i++ {
-		x1, y1 := x, y
+		// list of neighbors (up, down, left, right)
+		list := g.cells.VonNewmann(x, y, false)
+		cell := list[rand.Intn(len(list))] // pick random neighbor
 
-	retry:
-		switch rand.Intn(4) {
-		case 0: // left
-			if x1 == 0 {
-				goto retry
-			}
+		g.cells.Set(x, y, cell.Value)
+		g.cells.Set(cell.X, cell.Y, 0)
 
-			x1--
-
-		case 1: // right
-			if x1 == 3 {
-				goto retry
-			}
-
-			x1++
-
-		case 2: // top
-			if y1 == 0 {
-				goto retry
-			}
-
-			y1--
-
-		case 3: // bottom
-			if y1 == 3 {
-				goto retry
-			}
-
-			y1++
-		}
-
-		v := g.cells.Get(x1, y1)
-		g.cells.Set(x1, y1, 0)
-		g.cells.Set(x, y, v)
-
-		x, y = x1, y1
+		x, y = cell.X, cell.Y
 	}
+}
+
+func (g *Game) cellCoords(x, y int) (int, int) {
+	if x < border || y < border {
+		return -1, -1
+	}
+	if x > g.ww-border || y > g.wh-border {
+		return -1, -1
+	}
+
+	return (x - border) / g.tw, g.cells.Fix((y - border) / g.th)
 }
 
 func (g *Game) Init(screenw, screenh int) (int, int) {
@@ -184,6 +165,24 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
 		g.scramble(100)
 		g.redraw = true
+
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
+		x, y := g.cellCoords(ebiten.CursorPosition())
+		if x < 0 {
+			break
+		}
+
+		list := g.cells.VonNewmann(x, y, false)
+
+		for _, cell := range list {
+			if cell.Value == 0 { // swap select cell with empty one
+				//log.Println("swap", x, y, "with", cell)
+				g.cells.Set(cell.X, cell.Y, g.cells.Get(x, y))
+				g.cells.Set(x, y, 0)
+				g.redraw = true
+				break
+			}
+		}
 	}
 
 	return nil
