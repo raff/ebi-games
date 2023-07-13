@@ -22,7 +22,7 @@ var (
 	//go:embed assets/15puzzle.png
 	tilesPng   []byte
 	tiles      []*ebiten.Image
-	background = color.NRGBA{50, 50, 64, 255}
+	background = color.NRGBA{64, 32, 64, 255}
 )
 
 func readTiles() (int, int) {
@@ -52,9 +52,14 @@ func readTiles() (int, int) {
 		p = p.Add(image.Pt(-iw, th))
 	}
 
+        l := len(tiles)
+
 	// assuming the last tile is transparent (and empty) fill it with background color
-	tile := tiles[len(tiles)-1]
+	tile := tiles[l-1]
 	tile.Fill(background)
+
+        // also, move last tile (empty) to zero position
+        tiles = append(tiles[l-1:], tiles[:l-1]...)
 
 	return tw, th
 }
@@ -81,8 +86,6 @@ zero:
 			}
 		}
 	}
-
-	log.Println("zero:", x, y)
 
 	for i := 0; i < n; i++ {
 		x1, y1 := x, y
@@ -144,7 +147,6 @@ func (g *Game) Init(screenw, screenh int) (int, int) {
 		}
 	}
 
-	g.scramble(100)
 	return g.ww, g.wh
 }
 
