@@ -99,6 +99,18 @@ zero:
 	}
 }
 
+func (g *Game) reset() {
+	l := g.cells.Slice()
+
+	for i := range l {
+		if i < len(l)-1 {
+			l[i] = i + 1
+		}
+	}
+
+	l[len(l)-1] = 0
+}
+
 func (g *Game) cellCoords(x, y int) (int, int) {
 	if x < border || y < border {
 		return -1, -1
@@ -120,14 +132,7 @@ func (g *Game) Init(screenw, screenh int) (int, int) {
 	g.redraw = true
 
 	g.cells = matrix.New[int](4, 4, false)
-	l := g.cells.Slice()
-
-	for i := range l {
-		if i < len(l)-1 {
-			l[i] = i + 1
-		}
-	}
-
+	g.reset()
 	return g.ww, g.wh
 }
 
@@ -162,8 +167,12 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
 		return ebiten.Termination
 
-	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
+	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)andom
 		g.scramble(100)
+		g.redraw = true
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyI): // (I)nit
+		g.reset()
 		g.redraw = true
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
