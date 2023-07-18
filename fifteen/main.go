@@ -3,15 +3,14 @@ package main
 import (
 	"bytes"
 	_ "embed"
-	"image"
 	"image/color"
-	"image/png"
 	"log"
 	"math/rand"
 
 	"github.com/gobs/matrix"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/raff/ebi-games/util"
 )
 
 const (
@@ -21,47 +20,26 @@ const (
 var (
 	//go:embed assets/15puzzle.png
 	tilesPng   []byte
-	tiles      []*ebiten.Image
+	tiles      *util.Tiles
 	background = color.NRGBA{64, 32, 64, 255}
 )
 
 func readTiles() (int, int) {
-	img, err := png.Decode(bytes.NewBuffer(tilesPng))
+	var err error
+
+	tiles, err = util.ReadTiles(bytes.NewBuffer(tilesPng), 4, 4)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	iw, ih := img.Bounds().Dx(), img.Bounds().Dy()
-	if ih != ih {
-		log.Fatalf("invalid image dimension: not a square")
-	}
-
-	tw := iw / 4
-	th := ih / 4
-
-	ebimg := ebiten.NewImageFromImage(img)
-	p := image.Rect(0, 0, tw, th)
-
-	for y := 0; y < ih; y += th {
-		for x := 0; x < iw; x += tw {
-			tile := ebimg.SubImage(p).(*ebiten.Image)
-			tiles = append(tiles, tile)
-			p = p.Add(image.Pt(tw, 0))
-		}
-
-		p = p.Add(image.Pt(-iw, th))
-	}
-
-	l := len(tiles)
-
 	// assuming the last tile is transparent (and empty) fill it with background color
-	tile := tiles[l-1]
+	tile := tiles.List[15]
 	tile.Fill(background)
 
 	// also, move last tile (empty) to zero position
-	tiles = append(tiles[l-1:], tiles[:l-1]...)
+	tiles.List = append(tiles.List[15:], tiles.List[:15]...)
 
-	return tw, th
+	return tiles.Width, tiles.Height
 }
 
 type Game struct {
@@ -143,7 +121,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func (g *Game) drawCell(x, y, n int) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(x*g.tw+border), float64(y*g.th+border))
-	g.canvas.DrawImage(tiles[n], op)
+	g.canvas.DrawImage(tiles.List[n], op)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {

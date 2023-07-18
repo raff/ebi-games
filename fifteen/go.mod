@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/gobs/matrix v0.0.8
 	github.com/hajimehoshi/ebiten/v2 v2.5.5
+	github.com/raff/ebi-games/util v0.0.0-20230718214810-4840942a955a
 )
 
 require (
