@@ -56,6 +56,8 @@ func ReadTiles(r io.Reader, nx, ny int) (*Tiles, error) {
 
 	var tiles = Tiles{Width: tw, Height: th, Rows: ny, Columns: nx}
 
+	y := 0
+
 	for v := 0; v < ny; v++ {
 		for h := 0; h < nx; h++ {
 			tile := ebimg.SubImage(p).(*ebiten.Image)
@@ -63,7 +65,8 @@ func ReadTiles(r io.Reader, nx, ny int) (*Tiles, error) {
 			p = p.Add(image.Pt(tw, 0))
 		}
 
-		p.Add(image.Pt(-iw, th))
+		y += th
+		p = image.Rect(0, y, tw, y+th)
 	}
 
 	return &tiles, nil
