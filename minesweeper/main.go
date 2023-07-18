@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"flag"
 	//"fmt"
-	"image"
 	"image/color"
-	"image/png"
 	"log"
 	"math/rand"
 	"time"
@@ -16,19 +14,11 @@ import (
 	"github.com/gobs/matrix"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/raff/ebi-games/util"
 )
 
 const (
 	border = 4
-
-	cellw = 16
-	cellh = 16
-
-	digitw = 13
-	digith = 23
-
-	facew = 26
-	faceh = 26
 )
 
 type State int
@@ -85,9 +75,9 @@ var (
 	//go:embed assets/ms_faces.png
 	pngFaces []byte
 
-	tiles  []*ebiten.Image
-	digits []*ebiten.Image
-	faces  []*ebiten.Image
+	tiles  *util.Tiles
+	digits *util.Tiles
+	faces  *util.Tiles
 
 	background = color.NRGBA{192, 192, 192, 255}
 
@@ -136,98 +126,41 @@ type Game struct {
 }
 
 func (g *Game) Init(w, h int, scale float64) (int, int) {
-	if len(tiles) == 0 {
-		img, err := png.Decode(bytes.NewBuffer(pngCells))
+	if tiles == nil {
+		var err error
+
+		tiles, err = util.ReadTiles(bytes.NewBuffer(pngCells), 8, 1)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		iw, ih := img.Bounds().Dx(), img.Bounds().Dy()
-		if ih != cellh || iw != cellw*8 {
-			log.Fatalf("invalid cells image dimension: expected %vx%v got %vx%v", iw, ih, cellw*8, cellh)
-		}
-
-		ebimg := ebiten.NewImageFromImage(img)
-		p := image.Rect(0, 0, cellw, cellh)
-
-		// Unchecked, Empty, Flag, etc.
-		for x := 0; x < iw; x += cellw {
-			tile := ebimg.SubImage(p).(*ebiten.Image)
-			tiles = append(tiles, tile)
-			p = p.Add(image.Pt(cellw, 0))
-		}
-
-		img, err = png.Decode(bytes.NewBuffer(pngCounts))
+		tt, err := util.ReadTiles(bytes.NewBuffer(pngCounts), 8, 1)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		iw, ih = img.Bounds().Dx(), img.Bounds().Dy()
-		if ih != cellh || iw != cellw*8 {
-			log.Fatalf("invalid cells image dimension: expected %vx%v got %vx%v", iw, ih, cellw*8, cellh)
-		}
+		tiles.List = append(tiles.List, tt.List...)
+		tiles.List = append(tiles.List, tiles.List[Flag])          // MineFlag
+		tiles.List = append(tiles.List, tiles.List[Unsure])        // MineUnsure
+		tiles.List = append(tiles.List, tiles.List[UnsureChecked]) // MineUnsureChecked
 
-		ebimg = ebiten.NewImageFromImage(img)
-		p = image.Rect(0, 0, cellw, cellh)
-
-		// Count1 to Count8
-		for x := 0; x < iw; x += cellw {
-			tile := ebimg.SubImage(p).(*ebiten.Image)
-			tiles = append(tiles, tile)
-			p = p.Add(image.Pt(cellw, 0))
-		}
-
-		tiles = append(tiles, tiles[Flag])          // MineFlag
-		tiles = append(tiles, tiles[Unsure])        // MineUnsure
-		tiles = append(tiles, tiles[UnsureChecked]) // MineUnsureChecked
-
-		img, err = png.Decode(bytes.NewBuffer(pngDigits))
+		digits, err = util.ReadTiles(bytes.NewBuffer(pngDigits), 10, 1)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		iw, ih = img.Bounds().Dx(), img.Bounds().Dy()
-		if ih != digith || iw != digitw*10 {
-			log.Fatalf("invalid digits image dimension: expected %vx%v got %vx%v", iw, ih, digitw*10, digith)
-		}
-
-		ebimg = ebiten.NewImageFromImage(img)
-		p = image.Rect(0, 0, digitw, digith)
-
-		// 0 to 10
-		for x := 0; x < iw; x += digitw {
-			digit := ebimg.SubImage(p).(*ebiten.Image)
-			digits = append(digits, digit)
-			p = p.Add(image.Pt(digitw, 0))
-		}
-
-		img, err = png.Decode(bytes.NewBuffer(pngFaces))
+		faces, err = util.ReadTiles(bytes.NewBuffer(pngFaces), 5, 1)
 		if err != nil {
 			log.Fatal(err)
-		}
-
-		iw, ih = img.Bounds().Dx(), img.Bounds().Dy()
-		if ih != faceh || iw != facew*5 {
-			log.Fatalf("invalid faces image dimension: expected %vx%v got %vx%v", iw, ih, facew*5, faceh)
-		}
-
-		ebimg = ebiten.NewImageFromImage(img)
-		p = image.Rect(0, 0, facew, faceh)
-
-		// FaceUp, FaceDown, etc.
-		for x := 0; x < iw; x += facew {
-			face := ebimg.SubImage(p).(*ebiten.Image)
-			faces = append(faces, face)
-			p = p.Add(image.Pt(facew, 0))
 		}
 	}
 
 	if g.ww == 0 {
-		g.cw = g.level.width * cellw
-		g.ch = g.level.height * cellh
+		g.cw = g.level.width * tiles.Width
+		g.ch = g.level.height * tiles.Height
 
 		g.cx = border
-		g.cy = border + digith + border
+		g.cy = border + digits.Height + border
 
 		g.ww = g.cx + g.cw + border
 		g.wh = g.cy + g.ch + border
@@ -235,10 +168,10 @@ func (g *Game) Init(w, h int, scale float64) (int, int) {
 		g.mx = border
 		g.my = border
 
-		g.tx = g.ww - border - (digitw * 3) // 3 digits timer
+		g.tx = g.ww - border - (digits.Width * 3) // 3 digits timer
 		g.ty = border
 
-		g.fx = (g.ww / 2) - (facew / 2)
+		g.fx = (g.ww / 2) - (faces.Width / 2)
 		g.fy = border
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
@@ -283,7 +216,7 @@ func (g *Game) FaceClicked(x, y int) bool {
 		return false
 	}
 
-	if x >= g.fx+facew || y >= g.fy+faceh {
+	if x >= g.fx+faces.Width || y >= g.fy+faces.Height {
 		return false
 	}
 
@@ -301,7 +234,7 @@ func (g *Game) CellCoords(x, y int) (int, int) {
 		return -1, -1
 	}
 
-	return (x - g.cx) / cellw, g.cells.Fix((y - g.cy) / cellh)
+	return (x - g.cx) / tiles.Width, g.cells.Fix((y - g.cy) / tiles.Height)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -315,8 +248,8 @@ func (g *Game) drawDigits(x, y, n int) {
 	for x := 100; x > 0; x /= 10 {
 		d := (n / x) % 10
 
-		g.canvas.DrawImage(digits[d], op)
-		op.GeoM.Translate(digitw, 0)
+		g.canvas.DrawImage(digits.Item(d), op)
+		op.GeoM.Translate(float64(digits.Width), 0)
 	}
 }
 
@@ -352,12 +285,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 				found++
 			}
 
-			g.canvas.DrawImage(tiles[s], op)
-			op.GeoM.Translate(cellw, 0)
+			g.canvas.DrawImage(tiles.List[s], op)
+			op.GeoM.Translate(float64(tiles.Width), 0)
 		}
 
 		op.GeoM.SetElement(0, 2, border)
-		op.GeoM.Translate(0, cellh)
+		op.GeoM.Translate(0, float64(tiles.Height))
 	}
 
 	if !g.done && found == g.level.mines {
@@ -376,7 +309,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	op.GeoM.Reset()
 	op.GeoM.Translate(float64(g.fx), float64(g.fy))
-	g.canvas.DrawImage(faces[g.state], op)
+	g.canvas.DrawImage(faces.List[g.state], op)
 
 	screen.DrawImage(g.canvas, &g.drawOp)
 }
