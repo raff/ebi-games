@@ -329,6 +329,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	op.GeoM.Translate(float64(g.cx), float64(g.cy))
 
 	found := 0
+	wrong := 0
 
 	for y := 0; y < g.level.height; y++ {
 		for x := 0; x < g.level.width; x++ {
@@ -339,11 +340,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 					s = Empty
 				case Flag:
 					s = Nomine
+					wrong++
 				case MineFlag:
 					found++
 				}
 			} else if s == Mine {
 				s = Unchecked
+			} else if s == Nomine {
+				wrong++
 			} else if s == Flag || s == MineFlag {
 				found++
 			}
@@ -357,7 +361,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	if !g.done && found == g.level.mines {
-		g.state = Won
+		if wrong > 0 {
+			g.state = Lost
+		} else {
+			g.state = Won
+		}
+
 		g.done = true
 		g.redraw = true
 	}
