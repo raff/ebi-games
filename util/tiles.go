@@ -39,6 +39,10 @@ func (t *Tiles) At(x, y int) *ebiten.Image {
 
 // ReadTiles read the tiles from a png file
 func ReadTiles(r io.Reader, nx, ny int) (*Tiles, error) {
+	return ReadTilesScaledTo(r, nx, ny, 0, 0)
+}
+
+func ReadTilesScaledTo(r io.Reader, nx, ny int, tw, th int) (*Tiles, error) {
 	img, err := png.Decode(r)
 	if err != nil {
 		return nil, err
@@ -49,9 +53,22 @@ func ReadTiles(r io.Reader, nx, ny int) (*Tiles, error) {
 		return nil, errors.New("invalid cells image dimension")
 	}
 
-	tw, th := iw/nx, ih/ny
-
 	ebimg := ebiten.NewImageFromImage(img)
+
+	if tw > 0 && th > 0 {
+		sw, sh := float64(tw)/float64(iw/nx), float64(th)/float64(ih/ny)
+
+		scaled := ebiten.NewImage(iw, ih)
+
+		var op ebiten.DrawImageOptions
+		op.GeoM.Scale(sw, sh)
+
+		scaled.DrawImage(ebimg, &op)
+		ebimg = scaled
+	} else {
+		tw, th = iw/nx, ih/ny
+	}
+
 	p := image.Rect(0, 0, tw, th)
 
 	var tiles = Tiles{Width: tw, Height: th, Rows: ny, Columns: nx}
