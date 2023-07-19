@@ -1,10 +1,10 @@
 module github.com/raff/gio-games/ememory
 
-go 1.18
+go 1.20
 
 require (
-	github.com/disintegration/imaging v1.6.2
-	github.com/hajimehoshi/ebiten/v2 v2.5.4
+	github.com/hajimehoshi/ebiten/v2 v2.5.5
+	github.com/raff/ebi-games/util v0.0.0-20230719035742-9c7ea13c067d
 )
 
 require (

@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"image"
 	"image/color"
-	"image/png"
 	"log"
 	"time"
 
@@ -16,8 +14,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-
-	"github.com/disintegration/imaging"
+	"github.com/raff/ebi-games/util"
 )
 
 const (
@@ -29,7 +26,7 @@ var (
 	//go:embed assets/tiles.png
 	pngTiles []byte
 
-	tiles []*ebiten.Image
+	tiles *util.Tiles
 
 	cover       *ebiten.Image
 	coverColor  = color.NRGBA{0, 0, 32, 255}
@@ -40,7 +37,6 @@ var (
 
 	canvas *ebiten.Image
 
-	tw, th int // game tile width, height
 	gw, gh int // number of horizontal and vertical tiles in game
 
 	maxcards = hcount * vcount
@@ -53,48 +49,35 @@ var (
 )
 
 func initGame() {
-	if len(tiles) == 0 {
-		img, err := png.Decode(bytes.NewBuffer(pngTiles))
+	if tiles == nil {
+		var err error
+
+		tiles, err = util.ReadTilesScaledTo(bytes.NewBuffer(pngTiles), 10, 4, 150, 150)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		isz := img.Bounds().Size()
-		hsize := isz.X / hcount
-		vsize := isz.Y / vcount
-
 	card_loop:
-		for v, y := 0, 0; v < vcount; v++ {
-			for h, x := 0, 0; h < hcount; h++ {
-				card := v*hcount + h
+		for v := 0; v < tiles.Rows; v++ {
+			for h := 0; h < tiles.Columns; h++ {
+				card := v*tiles.Columns + h
 				if card >= maxcards {
 					break card_loop
 				}
-
-				im := imaging.Crop(img, image.Rect(x, y, x+hsize, y+vsize))
-				im = imaging.Resize(im, hsize/2, vsize/2, imaging.Box)
-				tiles = append(tiles, ebiten.NewImageFromImage(im))
-
 				cards = append(cards, card)
 				cards = append(cards, card)
-				x += hsize
 			}
-
-			y += vsize
 		}
-
-		tw = hsize / 2
-		th = vsize / 2
 	}
 
 	rand.Shuffle(len(cards), func(i, j int) {
 		cards[i], cards[j] = cards[j], cards[i]
 	})
 
-	cover = ebiten.NewImage(tw, th)
+	cover = ebiten.NewImage(tiles.Width, tiles.Height)
 	cover.Fill(borderColor)
 
-	inset := ebiten.NewImage(tw-8, th-8)
+	inset := ebiten.NewImage(tiles.Width-8, tiles.Height-8)
 	inset.Fill(coverColor)
 
 	op := &ebiten.DrawImageOptions{}
@@ -104,16 +87,16 @@ func initGame() {
 	gw, gh = factors(len(cards))
 	states = make([]bool, len(cards))
 
-	canvas = ebiten.NewImage(tw*gw, th*gh)
+	canvas = ebiten.NewImage(tiles.Width*gw, tiles.Height*gh)
 	canvas.Fill(coverColor)
 
 	for ti, ci := range cards {
 		x := ti % gw
 		y := (ti / gw) % gh
 
-		im := tiles[ci]
+		im := tiles.List[ci]
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(x*tw), float64(y*th))
+		op.GeoM.Translate(float64(x*tiles.Width), float64(y*tiles.Height))
 		canvas.DrawImage(im, op)
 	}
 
@@ -156,7 +139,7 @@ func main() {
 	}
 
 	ebiten.SetWindowTitle("Memory")
-	ebiten.SetWindowSize(gw*tw/2, gh*th/2)
+	ebiten.SetWindowSize(gw*tiles.Width/2, gh*tiles.Height/2)
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
 
@@ -168,7 +151,7 @@ func main() {
 }
 
 func gameCoords(x, y int) (int, int) {
-	return x / tw, y / th
+	return x / tiles.Width, y / tiles.Height
 }
 
 func gameIndex(x, y int) int {
@@ -203,7 +186,7 @@ func (g *Game) frame() *ebiten.Image {
 			y := (ti / gw) % gh
 
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(x*tw), float64(y*th))
+			op.GeoM.Translate(float64(x*tiles.Width), float64(y*tiles.Height))
 			im.DrawImage(cover, op)
 		}
 	}
@@ -212,8 +195,7 @@ func (g *Game) frame() *ebiten.Image {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	//fmt.Println(outsideWidth, outsideHeight, gw*tw, gh*th)
-	return gw * tw, gh * th
+	return gw * tiles.Width, gh * tiles.Height
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
