@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"image"
 	"image/color"
-	"image/png"
 	"log"
 	"sort"
 	"time"
@@ -15,17 +13,15 @@ import (
 
 	_ "embed"
 
-	"github.com/disintegration/imaging"
+	"github.com/raff/ebi-games/util"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	//"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 const (
-	hcount = 10
-	vcount = 4
-
 	mcount    = 3
 	drawerLen = 7
 
@@ -55,7 +51,7 @@ var (
 	//go:embed assets/tiles.png
 	pngTiles []byte
 
-	tiles []*ebiten.Image
+	tiles *util.Tiles
 
 	background  = color.NRGBA{80, 80, 80, 255}
 	borderColor = color.NRGBA{127, 127, 127, 255}
@@ -66,7 +62,6 @@ var (
 
 	drawerOp = &ebiten.DrawImageOptions{}
 
-	tw, th int // game tile width, height
 	gw, gh int // number of horizontal and vertical tiles in game
 	ww, wh int // window width and height
 
@@ -93,35 +88,25 @@ func initGame(clear bool) int {
 	var lcards []int
 
 	// load tiles from tile file
-	if len(tiles) == 0 {
-		img, err := png.Decode(bytes.NewBuffer(pngTiles))
+	if tiles == nil {
+		var err error
+
+		tiles, err = util.ReadTilesScaledTo(bytes.NewBuffer(pngTiles), 10, 4, 150, 150)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		isz := img.Bounds().Size()
-		hsize := isz.X / hcount
-		vsize := isz.Y / vcount
+		for _, t := range tiles.List {
+			b := t.Bounds()
 
-		tw = hsize / 2
-		th = vsize / 2
+			x := float32(b.Min.X + border)
+			y := float32(b.Min.Y + border)
+			w := float32(b.Dx() - border - border)
+			h := float32(b.Dy() - border - border)
 
-		for v, y := 0, 0; v < vcount; v++ {
-			for h, x := 0, 0; h < hcount; h++ {
-				tile := ebiten.NewImage(tw, th)
-				tile.Fill(borderColor)
-				im := imaging.Crop(img, image.Rect(x, y, x+hsize, y+vsize))
-				im = imaging.Resize(im, tw-border, th-border-border, imaging.Box)
-				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(border, border)
-				tile.DrawImage(ebiten.NewImageFromImage(im), op)
-				tiles = append(tiles, tile)
-
-				x += hsize
-			}
-
-			y += vsize
+			vector.StrokeRect(t, x, y, w, h, float32(border), borderColor, false)
 		}
+
 	}
 
 	// initialize cards
@@ -150,10 +135,10 @@ func initGame(clear bool) int {
 		}
 
 		gw, gh = factors(len(lcards))
-		ww, wh = gw*tw, (gh+1)*th/2
+		ww, wh = gw*tiles.Width, (gh+1)*tiles.Height/2
 
 		// add space for tiles drawer
-		wh += border + border + th + border
+		wh += border + border + tiles.Height + border
 
 		cards = make([][]int, gw)
 
@@ -163,10 +148,10 @@ func initGame(clear bool) int {
 	}
 
 	if canvas == nil {
-		drawerbg = ebiten.NewImage(tw*drawerLen, th)
+		drawerbg = ebiten.NewImage(tiles.Width*drawerLen, tiles.Height)
 		drawerbg.Fill(placeColor)
 
-		drawerOp.GeoM.Translate(float64(ww-drawerbg.Bounds().Dx())/2, float64(wh-th-border-border))
+		drawerOp.GeoM.Translate(float64(ww-drawerbg.Bounds().Dx())/2, float64(wh-tiles.Width-border-border))
 
 		drawer = make(drawerCards, 0, drawerLen)
 
@@ -261,7 +246,7 @@ func drawCards(revs map[int]bool) {
 
 	for x, col := range cards {
 		for y, card := range col {
-			im := tiles[card]
+			im := tiles.List[card]
 			ci := gameIndex(x, y)
 			op := &ebiten.DrawImageOptions{}
 
@@ -272,7 +257,7 @@ func drawCards(revs map[int]bool) {
 				op.ColorM.Scale(0.5, 0.5, 0.5, 1)
 			}
 
-			op.GeoM.Translate(float64(x*tw), float64(y*th/2))
+			op.GeoM.Translate(float64(x*tiles.Width), float64(y*tiles.Height/2))
 			canvas.DrawImage(im, op)
 		}
 	}
@@ -280,12 +265,12 @@ func drawCards(revs map[int]bool) {
 	canvas.DrawImage(drawerbg, drawerOp)
 
 	for i, p := range drawer {
-		im := tiles[p.card]
+		im := tiles.List[p.card]
 
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(
-			float64(((ww-drawerbg.Bounds().Dx())/2)+(i*tw)),
-			float64(wh-th-border-border))
+			float64(((ww-drawerbg.Bounds().Dx())/2)+(i*tiles.Width)),
+			float64(wh-tiles.Height-border-border))
 
 		canvas.DrawImage(im, op)
 	}
@@ -294,8 +279,8 @@ func drawCards(revs map[int]bool) {
 }
 
 func cardIndex(x, y int) (int, int, int) {
-	x /= tw
-	y /= (th / 2)
+	x /= tiles.Width
+	y /= (tiles.Height / 2)
 
 	//log.Println("cardIndex", x, y)
 	if x, y, c := playable(x, y); c >= 0 {
