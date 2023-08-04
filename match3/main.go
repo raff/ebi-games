@@ -191,20 +191,29 @@ func (g *Game) FindMatches() bool {
 		matched := false
 		w, h := g.cells.Width(), g.cells.Height()
 
+		hseq := map[int][]sequence{}
+
 		// check horizontal
 		for i := 0; i < h; i++ {
 			row := g.cells.Row(i)
 			seq := findseq(row)
 
-			if len(seq) > 0 {
-				matched = true
+			if len(seq) == 0 {
+				continue
 			}
 
-			for _, s := range seq {
-				for x := 0; x < s.count; x++ {
-					g.cells.Set(s.start+x, i, 0)
-				}
-			}
+			//
+			// cannot to this now, otherwise it messes up with columns
+			//
+			//for _, s := range seq {
+			//	for x := 0; x < s.count; x++ {
+			//		g.cells.Set(s.start+x, i, 0)
+			//	}
+			//}
+
+			hseq[i] = seq // store the sequence and process later
+			matched = true
+
 		}
 
 		// check vertical
@@ -212,13 +221,24 @@ func (g *Game) FindMatches() bool {
 			col := g.cells.Col(i)
 			seq := findseq(col)
 
-			if len(seq) > 0 {
-				matched = true
+			if len(seq) == 0 {
+				continue
 			}
+
+			matched = true
 
 			for _, s := range seq {
 				for y := 0; y < s.count; y++ {
 					g.cells.Set(i, s.start+y, 0)
+				}
+			}
+		}
+
+		// update horizontal
+		for i, seq := range hseq {
+			for _, s := range seq {
+				for x := 0; x < s.count; x++ {
+					g.cells.Set(s.start+x, i, 0)
 				}
 			}
 		}
