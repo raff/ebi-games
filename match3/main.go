@@ -22,6 +22,8 @@ const (
 	vsize = 20
 
 	csize = 30
+
+	mincount = 3
 )
 
 var (
@@ -39,6 +41,33 @@ var (
 		{250, 120, 20, 255},
 	}
 )
+
+type sequence struct {
+	value, start, count int
+}
+
+func findseq(in []int) (out []sequence) {
+	var curr sequence
+
+	for i, v := range in {
+		if v == curr.value {
+			curr.count++
+			continue
+		}
+
+		if curr.count >= mincount {
+			out = append(out, curr)
+		}
+
+		curr = sequence{value: v, start: i, count: 1}
+	}
+
+	if curr.count > mincount {
+		out = append(out, curr)
+	}
+
+	return
+}
 
 type Game struct {
 	cells matrix.Matrix[int]
@@ -155,102 +184,64 @@ func (g *Game) Collapse(col int) {
 	}
 }
 
-func (g *Game) Matches(x, y int) (match bool) {
-	v := g.cells.Get(x, y)
-	if v == 0 {
-		return false
-	}
-
-	row := g.cells.Row(y)
-	minx, maxx := x, x
-
-	for i := x - 1; i >= 0; i-- {
-		if row[i] != v {
-			break
-		}
-
-		minx = i
-	}
-
-	for i := x + 1; i <= len(row)-1; i++ {
-		if row[i] != v {
-			break
-		}
-
-		maxx = i
-	}
-
-	col := g.cells.Col(x)
-	miny, maxy := y, y
-
-	for i := y - 1; i >= 0; i-- {
-		if col[i] != v {
-			break
-		}
-
-		miny = i
-	}
-
-	for i := y + 1; i <= len(col)-1; i++ {
-		if col[i] != v {
-			break
-		}
-
-		maxy = i
-	}
-
-	if maxx-minx+1 >= 3 {
-		match = true
-
-		for i := minx; i <= maxx; i++ {
-			g.cells.Set(i, y, 0)
-		}
-	}
-
-	if maxy-miny+1 >= 3 {
-		match = true
-
-		for i := miny; i <= maxy; i++ {
-			g.cells.Set(x, i, 0)
-		}
-	}
-
-	if match {
-		for i := 0; i < g.cells.Width(); i++ {
-			g.Collapse(i)
-		}
-	}
-
-	return
-}
-
-func (g *Game) AllMatches(x, y int) bool {
-	matched := g.Matches(x, y)
+func (g *Game) FindMatches() bool {
+	var count int
 
 	for {
-		count := 0
+		matched := false
+		w, h := g.cells.Width(), g.cells.Height()
 
-		for y = 0; y < g.cells.Height(); y++ {
-			for x = 0; x < g.cells.Width(); x++ {
-				if g.Matches(x, y) {
-					count++
-					matched = true
+		// check horizontal
+		for i := 0; i < h; i++ {
+			row := g.cells.Row(i)
+			seq := findseq(row)
+
+			if len(seq) > 0 {
+				matched = true
+			}
+
+			for _, s := range seq {
+				for x := 0; x < s.count; x++ {
+					g.cells.Set(s.start+x, i, 0)
 				}
 			}
 		}
 
-		if count == 0 {
+		// check vertical
+		for i := 0; i < w; i++ {
+			col := g.cells.Col(i)
+			seq := findseq(col)
+
+			if len(seq) > 0 {
+				matched = true
+			}
+
+			for _, s := range seq {
+				for y := 0; y < s.count; y++ {
+					g.cells.Set(i, s.start+y, 0)
+				}
+			}
+		}
+
+		if !matched {
 			break
 		}
+
+		// collapse
+		for i := 0; i < w; i++ {
+			g.Collapse(i)
+		}
+
+		count++
 	}
 
-	return matched
+	return count > 0
 }
 
 func (g *Game) Update() error {
 	if !g.started {
 		g.started = true
-		g.redraw = g.AllMatches(0, 0)
+		g.redraw = g.FindMatches()
 		return nil
 	}
 
@@ -260,6 +251,24 @@ func (g *Game) Update() error {
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
 		g.Init(0, 0)
+
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight): // Cicle colors
+		if g.done {
+			break
+		}
+
+		x, y := g.CellCoords(ebiten.CursorPosition())
+		if x < 0 {
+			break
+		}
+
+		v := g.cells.Get(x, y) + 1
+		if v >= len(colors) {
+			v = 1
+		}
+
+		g.cells.Set(x, y, v)
+		g.redraw = true
 
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft): // Mouse click
 		if g.done {
@@ -280,7 +289,7 @@ func (g *Game) Update() error {
 					g.cells.Set(x, y, v2)
 					g.cells.Set(c.X, c.Y, v1)
 
-					if !g.AllMatches(x, y) {
+					if !g.FindMatches() {
 						g.cells.Set(x, y, v1)
 						g.cells.Set(c.X, c.Y, v2)
 					}
