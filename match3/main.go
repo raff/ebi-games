@@ -199,24 +199,24 @@ func (g *Game) Matches(x, y int) (match bool) {
 		maxy = i
 	}
 
-	if maxy-miny+1 >= 3 {
-		match = true
-
-		for i := miny; i <= maxy; i++ {
-			g.cells.Set(x, i, 0)
-		}
-
-		g.Collapse(x)
-	}
-
 	if maxx-minx+1 >= 3 {
 		match = true
 
 		for i := minx; i <= maxx; i++ {
 			g.cells.Set(i, y, 0)
 		}
+	}
 
-		for i := minx; i <= maxx; i++ {
+	if maxy-miny+1 >= 3 {
+		match = true
+
+		for i := miny; i <= maxy; i++ {
+			g.cells.Set(x, i, 0)
+		}
+	}
+
+	if match {
+		for i := 0; i < g.cells.Width(); i++ {
 			g.Collapse(i)
 		}
 	}
@@ -224,14 +224,14 @@ func (g *Game) Matches(x, y int) (match bool) {
 	return
 }
 
-func (g *Game) AllMatches() bool {
-	matched := false
+func (g *Game) AllMatches(x, y int) bool {
+	matched := g.Matches(x, y)
 
 	for {
 		count := 0
 
-		for y := 0; y < g.cells.Height(); y++ {
-			for x := 0; x < g.cells.Width(); x++ {
+		for y = 0; y < g.cells.Height(); y++ {
+			for x = 0; x < g.cells.Width(); x++ {
 				if g.Matches(x, y) {
 					count++
 					matched = true
@@ -250,7 +250,7 @@ func (g *Game) AllMatches() bool {
 func (g *Game) Update() error {
 	if !g.started {
 		g.started = true
-		g.redraw = g.AllMatches()
+		g.redraw = g.AllMatches(0, 0)
 		return nil
 	}
 
@@ -280,7 +280,7 @@ func (g *Game) Update() error {
 					g.cells.Set(x, y, v2)
 					g.cells.Set(c.X, c.Y, v1)
 
-					if !g.AllMatches() {
+					if !g.AllMatches(x, y) {
 						g.cells.Set(x, y, v1)
 						g.cells.Set(c.X, c.Y, v2)
 					}
