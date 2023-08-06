@@ -62,7 +62,7 @@ func findseq(in []int) (out []sequence) {
 		curr = sequence{value: v, start: i, count: 1}
 	}
 
-	if curr.count > mincount {
+	if curr.count >= mincount {
 		out = append(out, curr)
 	}
 
@@ -150,7 +150,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Collapse(col int) {
-	l := g.cells.Col(col)
+	l := g.cells.Column(col)
 
 	for i := len(l) - 1; i >= 0; i-- {
 		var j int
@@ -187,10 +187,10 @@ func (g *Game) Collapse(col int) {
 func (g *Game) FindMatches() bool {
 	var count int
 
+	w, h := g.cells.Width(), g.cells.Height()
+
 	for {
 		matched := false
-		w, h := g.cells.Width(), g.cells.Height()
-
 		hseq := map[int][]sequence{}
 
 		// check horizontal
@@ -218,7 +218,7 @@ func (g *Game) FindMatches() bool {
 
 		// check vertical
 		for i := 0; i < w; i++ {
-			col := g.cells.Col(i)
+			col := g.cells.Column(i)
 			seq := findseq(col)
 
 			if len(seq) == 0 {
@@ -304,14 +304,10 @@ func (g *Game) Update() error {
 			cells := g.cells.VonNewmann(x, y, false)
 			for _, c := range cells {
 				if c.X == g.highlight.X && c.Y == g.highlight.Y {
-					v1 := g.cells.Get(x, y)
-					v2 := g.cells.Get(c.X, c.Y)
-					g.cells.Set(x, y, v2)
-					g.cells.Set(c.X, c.Y, v1)
+					g.cells.Swap(x, y, c.X, c.Y)
 
 					if !g.FindMatches() {
-						g.cells.Set(x, y, v1)
-						g.cells.Set(c.X, c.Y, v2)
+						g.cells.Swap(x, y, c.X, c.Y)
 					}
 
 					break

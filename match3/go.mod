@@ -3,7 +3,7 @@ module github.com/raff/ebi-games/match3
 go 1.20
 
 require (
-	github.com/gobs/matrix v0.0.8
+	github.com/gobs/matrix v0.0.9
 	github.com/hajimehoshi/ebiten/v2 v2.5.6
 )
 

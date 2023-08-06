@@ -3,8 +3,8 @@ github.com/ebitengine/purego v0.4.0 h1:RQVuMIxQPQ5iCGEJvjQ17YOK+1tMKjVau2FUMvXH4
 github.com/ebitengine/purego v0.4.0/go.mod h1:ah1In8AOtksoNK6yk5z1HTJeUkC1Ez4Wk2idgGslMwQ=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20221017161538-93cebf72946b h1:GgabKamyOYguHqHjSkDACcgoPIz3w0Dis/zJ1wyHHHU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20221017161538-93cebf72946b/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
-github.com/gobs/matrix v0.0.8 h1:iKi7C7B/EmGXHIeYVbnOMznJL3JdhITMzXHFk25sDhc=
-github.com/gobs/matrix v0.0.8/go.mod h1:uFEMX0Yc/yurgS9zQ8rIH+81fF+SAkd0MpcYojCB8hs=
+github.com/gobs/matrix v0.0.9 h1:Po0BrY69kdthy6DL0Q0adDMgRwDVl6RNNLeIlYbD/8Y=
+github.com/gobs/matrix v0.0.9/go.mod h1:uFEMX0Yc/yurgS9zQ8rIH+81fF+SAkd0MpcYojCB8hs=
 github.com/hajimehoshi/ebiten/v2 v2.5.6 h1:42Z8RUSE1e/CXl85mlbQs0OSM04st0Hhhc4DbAPpiz8=
 github.com/hajimehoshi/ebiten/v2 v2.5.6/go.mod h1:5mIHPgI3eJOCxdNyPOdRrX30BZFhc7LwgswHrfqQZIY=
 github.com/jezek/xgb v1.1.0 h1:wnpxJzP1+rkbGclEkmwpVFQWpuE2PUGNUzP8SbfFobk=
