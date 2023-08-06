@@ -259,6 +259,35 @@ func (g *Game) Update() error {
 
 	g.matches = false
 
+	checkMatch := func() {
+		x, y := g.CellCoords(ebiten.CursorPosition())
+		if x < 0 {
+			return
+		}
+
+		g.redraw = true
+
+		if g.highlight != nil {
+			cells := g.cells.VonNewmann(x, y, false)
+			for _, c := range cells {
+				if c.X == g.highlight.X && c.Y == g.highlight.Y {
+					g.cells.Swap(x, y, c.X, c.Y)
+
+					g.matches = g.FindMatches()
+					if !g.matches {
+						g.cells.Swap(x, y, c.X, c.Y)
+					}
+
+					break
+				}
+			}
+
+			g.highlight = nil
+		} else {
+			g.highlight = &image.Point{X: x, Y: y}
+		}
+	}
+
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
 		return ebiten.Termination
@@ -266,7 +295,7 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
 		g.Init(0, 0)
 
-	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight): // Cicle colors
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight): // Cycle colors
 		if g.done {
 			break
 		}
@@ -289,31 +318,18 @@ func (g *Game) Update() error {
 			break
 		}
 
-		x, y := g.CellCoords(ebiten.CursorPosition())
-		if x < 0 {
-			break
-		}
+		checkMatch()
 
+	case ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft): // Mouse click and move
 		if g.highlight != nil {
-			cells := g.cells.VonNewmann(x, y, false)
-			for _, c := range cells {
-				if c.X == g.highlight.X && c.Y == g.highlight.Y {
-					g.cells.Swap(x, y, c.X, c.Y)
-
-					g.matches = g.FindMatches()
-					if !g.matches {
-						g.cells.Swap(x, y, c.X, c.Y)
-					}
-
-					break
-				}
+			x, y := g.CellCoords(ebiten.CursorPosition())
+			if x < 0 {
+				break
 			}
 
-			g.redraw = true
-			g.highlight = nil
-		} else {
-			g.highlight = &image.Point{X: x, Y: y}
-			g.redraw = true
+			if x != g.highlight.X || y != g.highlight.Y {
+				checkMatch()
+			}
 		}
 	}
 
