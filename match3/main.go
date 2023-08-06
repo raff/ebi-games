@@ -73,6 +73,7 @@ type Game struct {
 	cells matrix.Matrix[int]
 
 	redraw  bool
+	matches bool
 	started bool
 	done    bool
 
@@ -98,7 +99,7 @@ func (g *Game) Init(w, h int) (int, int) {
 	}
 
 	g.redraw = true
-	g.started = false
+	g.matches = true
 	g.done = false
 
 	g.ww, g.wh = hsize*csize+2*border, hsize*csize+2*border
@@ -185,85 +186,78 @@ func (g *Game) Collapse(col int) {
 }
 
 func (g *Game) FindMatches() bool {
-	var count int
-
 	w, h := g.cells.Width(), g.cells.Height()
 
-	for {
-		matched := false
-		hseq := map[int][]sequence{}
+	matched := false
+	hseq := map[int][]sequence{}
 
-		// check horizontal
-		for i := 0; i < h; i++ {
-			row := g.cells.Row(i)
-			seq := findseq(row)
+	// check horizontal
+	for i := 0; i < h; i++ {
+		row := g.cells.Row(i)
+		seq := findseq(row)
 
-			if len(seq) == 0 {
-				continue
-			}
-
-			//
-			// cannot to this now, otherwise it messes up with columns
-			//
-			//for _, s := range seq {
-			//	for x := 0; x < s.count; x++ {
-			//		g.cells.Set(s.start+x, i, 0)
-			//	}
-			//}
-
-			hseq[i] = seq // store the sequence and process later
-			matched = true
-
+		if len(seq) == 0 {
+			continue
 		}
 
-		// check vertical
-		for i := 0; i < w; i++ {
-			col := g.cells.Column(i)
-			seq := findseq(col)
+		//
+		// cannot to this now, otherwise it messes up with columns
+		//
+		//for _, s := range seq {
+		//	for x := 0; x < s.count; x++ {
+		//		g.cells.Set(s.start+x, i, 0)
+		//	}
+		//}
 
-			if len(seq) == 0 {
-				continue
-			}
+		hseq[i] = seq // store the sequence and process later
+		matched = true
 
-			matched = true
+	}
 
-			for _, s := range seq {
-				for y := 0; y < s.count; y++ {
-					g.cells.Set(i, s.start+y, 0)
-				}
-			}
+	// check vertical
+	for i := 0; i < w; i++ {
+		col := g.cells.Column(i)
+		seq := findseq(col)
+
+		if len(seq) == 0 {
+			continue
 		}
 
-		// update horizontal
-		for i, seq := range hseq {
-			for _, s := range seq {
-				for x := 0; x < s.count; x++ {
-					g.cells.Set(s.start+x, i, 0)
-				}
+		matched = true
+
+		for _, s := range seq {
+			for y := 0; y < s.count; y++ {
+				g.cells.Set(i, s.start+y, 0)
 			}
 		}
+	}
 
-		if !matched {
-			break
+	// update horizontal
+	for i, seq := range hseq {
+		for _, s := range seq {
+			for x := 0; x < s.count; x++ {
+				g.cells.Set(s.start+x, i, 0)
+			}
 		}
+	}
 
+	if matched {
 		// collapse
 		for i := 0; i < w; i++ {
 			g.Collapse(i)
 		}
-
-		count++
 	}
 
-	return count > 0
+	return matched
 }
 
 func (g *Game) Update() error {
-	if !g.started {
-		g.started = true
-		g.redraw = g.FindMatches()
+	if g.matches && g.FindMatches() {
+		g.redraw = true
 		return nil
 	}
+
+	g.matches = false
 
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
@@ -306,7 +300,8 @@ func (g *Game) Update() error {
 				if c.X == g.highlight.X && c.Y == g.highlight.Y {
 					g.cells.Swap(x, y, c.X, c.Y)
 
-					if !g.FindMatches() {
+					g.matches = g.FindMatches()
+					if !g.matches {
 						g.cells.Swap(x, y, c.X, c.Y)
 					}
 
