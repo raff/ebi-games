@@ -1,13 +1,10 @@
 package main
 
 import (
-	//"fmt"
 	"image"
 	"image/color"
 	"math/rand"
 	"time"
-
-	_ "embed"
 
 	"github.com/gobs/matrix"
 	"github.com/hajimehoshi/ebiten/v2"
