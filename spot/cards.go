@@ -1,8 +1,8 @@
 package main
 
 import (
-// "fmt"
-// "math/rand"
+	//"fmt"
+	"math/rand"
 )
 
 const (
@@ -10,44 +10,61 @@ const (
 	nsyms = 57 // total number of symbols (and number of cards)
 )
 
+func print(c []int) {
+	//fmt.Printf("%2v\n", c)
+}
+
 func getCards() (cards [][]int) {
-	var syms []int
+	N := ndups - 1
 
-	for r := 0; r < ndups; r++ {
-		s := r + 1
+	addcard := func(c []int) {
+		rand.Shuffle(len(c), func(i, j int) {
+			c[i], c[j] = c[j], c[i]
+		})
 
-		for t := 0; t < nsyms; t++ {
-			syms = append(syms, s)
-			s = (s % nsyms) + 1
+		cards = append(cards, c)
+	}
+
+	// Fist card
+	var card []int
+
+	for i := 0; i <= N; i++ {
+		card = append(card, i+1)
+	}
+
+	addcard(card)
+
+	// N following cards
+	for i := 0; i < N; i++ {
+		var card []int
+
+		card = append(card, 1)
+
+		for j := 0; j < N; j++ {
+			card = append(card, (N+1)+(N*i)+j)
 		}
+
+		addcard(card)
 	}
 
-	getsym := func() (s int) {
-		s, syms = syms[0], syms[1:]
-		return
-	}
+	// N*N following cards
+	for i := 0; i < N; i++ {
+		for j := 0; j < N; j++ {
+			var card []int
 
-	for k := 0; k < ndups; k++ {
-		first := getsym()
+			card = append(card, i+1)
 
-		for r := 0; r < ndups; r++ {
-			card := []int{first}
-
-			for k := 1; k < ndups; k++ {
-				card = append(card, getsym())
+			for k := 0; k < N; k++ {
+				card = append(card, (N+1)+(N*k)+(i*k+j)%N)
 			}
 
-			//rand.Shuffle(len(card), func(i, j int) {
-			//	card[i], card[j] = card[j], card[i]
-			//})
-
-			cards = append(cards, card)
+			addcard(card)
 		}
 	}
 
-	//rand.Shuffle(len(cards), func(i, j int) {
-	//	cards[i], cards[j] = cards[j], cards[i]
-	//})
+	rand.Shuffle(len(cards), func(i, j int) {
+		cards[i], cards[j] = cards[j], cards[i]
+	})
 
 	return
 }
@@ -68,8 +85,10 @@ func match(c1, c2 []int) int {
 func main() {
 	cards := getCards()
 
+	fmt.Println()
+
 	for _, c := range cards {
-		fmt.Printf("%2v\n", c)
+		print(c)
 	}
 
 	fmt.Println()
@@ -81,4 +100,5 @@ func main() {
 		fmt.Printf("%2v %2v -> %v\n", c1, c2, match(c1, c2))
 	}
 }
+
 */
