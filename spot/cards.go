@@ -1,13 +1,13 @@
 package main
 
 import (
-//"fmt"
-//"math/rand"
+// "fmt"
+// "math/rand"
 )
 
 const (
-	ndups = 8  // 8 copies of each object (and number of objects per card)
-	nsyms = 57 // total number of objects (and number of cards)
+	ndups = 8  // 8 copies of each symbol (and number of symbols per card)
+	nsyms = 57 // total number of symbols (and number of cards)
 )
 
 func getCards() (cards [][]int) {
@@ -18,11 +18,7 @@ func getCards() (cards [][]int) {
 
 		for t := 0; t < nsyms; t++ {
 			syms = append(syms, s)
-			s++
-
-			if s > nsyms {
-				s = 1
-			}
+			s = (s % nsyms) + 1
 		}
 	}
 
