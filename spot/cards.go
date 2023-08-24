@@ -73,6 +73,8 @@ func main() {
 	}
 
 	fmt.Println()
+	fmt.Println(len(cards), "cards")
+	fmt.Println()
 
 	for i := 1; i < len(cards); i++ {
 		c1, c2 := cards[i-1], cards[i]
