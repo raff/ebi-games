@@ -34,7 +34,7 @@ func (t *Tiles) At(x, y int) *ebiten.Image {
 		return nil
 	}
 
-	return t.List[x+y*t.Width]
+	return t.List[x+y*t.Columns]
 }
 
 // ReadTiles read the tiles from a png file
