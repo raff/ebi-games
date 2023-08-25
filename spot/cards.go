@@ -69,6 +69,12 @@ func getCards() (cards [][]int) {
 	return
 }
 
+func shuffle(cards [][]int) {
+	rand.Shuffle(len(cards), func(i, j int) {
+		cards[i], cards[j] = cards[j], cards[i]
+	})
+}
+
 func match(c1, c2 []int) int {
 	for _, v1 := range c1 {
 		for _, v2 := range c2 {

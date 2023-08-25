@@ -4,27 +4,33 @@ import (
 	"bytes"
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 	"time"
 
 	_ "embed"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	//"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/raff/ebi-games/util"
 )
 
-const border = 4
+const border = 10
+const sides = 7
 
 var (
 	//go:embed assets/spotit.png
 	pngSyms []byte
 
 	tiles *util.Tiles
+	cards = getCards()
 )
 
 type Game struct {
-	ww, wh int
+	tw, th int // tile width, height
+	ww, wh int // window width, height
+	r      int // card radius
 
 	redraw bool
 }
@@ -39,16 +45,29 @@ func (g *Game) Init() (int, int) {
 		}
 	}
 
-	tw, th := tiles.Width+border, tiles.Height+border
+	g.tw, g.th = tiles.Width, tiles.Height
 
-	g.ww = tw*tiles.Columns + border
-	g.wh = th*tiles.Rows + border
+	g.r = max(g.tw*4, g.th*4) / 2
+
+	d := g.r * 2
+
+	g.ww = border + d + border + border + d + border
+	g.wh = border + d + border
 	g.redraw = true
 
 	return g.ww, g.wh
 }
 
 func (g *Game) Update() error {
+	switch {
+	case inpututil.IsKeyJustPressed(ebiten.KeyQ), inpututil.IsKeyJustPressed(ebiten.KeyX): // (Q)uit or e(X)it
+		return ebiten.Termination
+
+	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
+		shuffle(cards)
+		g.redraw = true
+	}
+
 	return nil
 }
 
@@ -59,25 +78,27 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	screen.Fill(color.Black)
 
-	tw := tiles.Width + border
-	th := tiles.Height + border
+	drawCard := func(x, y, c int) {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(x-(g.tw/2)), float64(y-(g.th/2)))
+		screen.DrawImage(tiles.Item(c-1), op)
+	}
 
-	filler := ebiten.NewImage(tiles.Width, tiles.Height)
-	filler.Fill(color.White)
+	vector.DrawFilledCircle(screen, float32(g.r+border), float32(g.wh/2), float32(g.r), color.White, false)
+	vector.DrawFilledCircle(screen, float32(g.ww-g.r-border), float32(g.wh/2), float32(g.r), color.White, false)
 
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(border), float64(border))
+	c1 := cards[0]
+	c2 := cards[1]
 
-	for y := 0; y < tiles.Rows; y++ {
-		for x := 0; x < tiles.Columns; x++ {
-			t := tiles.At(x, y)
-			screen.DrawImage(filler, op)
-			screen.DrawImage(t, op)
-			op.GeoM.Translate(float64(tw), 0)
-		}
+	drawCard(g.r+border, g.wh/2, c1[0])
+	drawCard(g.ww-g.r-border, g.wh/2, c2[0])
 
-		op.GeoM.SetElement(0, 2, border)
-		op.GeoM.Translate(0, float64(th))
+	for i := 0; i < sides; i++ {
+		x := int(float64(g.r/2) * math.Cos(2*math.Pi*float64(i)/sides))
+		y := int(float64(g.r/2) * math.Sin(2*math.Pi*float64(i)/sides))
+
+		drawCard(g.r+border+x, g.wh/2+y, c1[i+1])
+		drawCard(g.ww-g.r-border+x, g.wh/2+y, c2[i+1])
 	}
 
 	g.redraw = false
