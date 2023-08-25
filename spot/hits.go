@@ -22,3 +22,13 @@ func (hits Hits[T]) Find(x, y int) *Hit[T] {
 
 	return nil
 }
+
+func (hits Hits[T]) FindValue(v T) *Hit[T] {
+	for _, h := range hits {
+		if h.Value == v {
+			return &h
+		}
+	}
+
+	return nil
+}

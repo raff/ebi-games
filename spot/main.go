@@ -36,6 +36,8 @@ type Game struct {
 	lhits Hits[int]
 	rhits Hits[int]
 
+	highlight *Hit[int]
+
 	redraw bool
 }
 
@@ -87,6 +89,19 @@ func (g *Game) Update() error {
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
 		shuffle(cards)
 		g.redraw = true
+
+	}
+
+	if r := g.lhits.Find(ebiten.CursorPosition()); r != nil {
+		if g.highlight == nil || r.Value != g.highlight.Value {
+			log.Println("found", r)
+			g.highlight = r
+			g.redraw = true
+		}
+	} else if g.highlight != nil {
+		log.Println("unfound", g.highlight)
+		g.highlight = nil
+		g.redraw = true
 	}
 
 	return nil
@@ -117,6 +132,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 		drawCard(l.R.Min.X, l.R.Min.Y, c1[i])
 		drawCard(r.R.Min.X, r.R.Min.Y, c2[i])
+	}
+
+	if g.highlight != nil {
+		r := g.highlight.R
+		log.Println("highlight", r)
+		vector.StrokeRect(screen, float32(r.Min.X), float32(r.Min.Y), float32(r.Dx()), float32(r.Dy()), 3, color.Black, false)
 	}
 
 	g.redraw = false
