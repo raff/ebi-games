@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"image"
 	"image/color"
 	"log"
 	"math"
@@ -32,6 +33,9 @@ type Game struct {
 	ww, wh int // window width, height
 	r      int // card radius
 
+	lhits Hits[int]
+	rhits Hits[int]
+
 	redraw bool
 }
 
@@ -53,8 +57,25 @@ func (g *Game) Init() (int, int) {
 
 	g.ww = border + d + border + border + d + border
 	g.wh = border + d + border
-	g.redraw = true
 
+	getRect := func(x, y int) image.Rectangle {
+		x = x - (g.tw / 2)
+		y = y - (g.th / 2)
+		return image.Rect(x, y, x+g.tw, y+g.th)
+	}
+
+	g.lhits = append(g.lhits, Hit[int]{getRect(g.r+border, g.wh/2), 0})
+	g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.r-border, g.wh/2), 0})
+
+	for i := 0; i < sides; i++ {
+		x := int(float64(g.r/2) * math.Cos(2*math.Pi*float64(i)/sides))
+		y := int(float64(g.r/2) * math.Sin(2*math.Pi*float64(i)/sides))
+
+		g.lhits = append(g.lhits, Hit[int]{getRect(g.r+border+x, g.wh/2+y), i + 1})
+		g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.r-border+x, g.wh/2+y), i + 1})
+	}
+
+	g.redraw = true
 	return g.ww, g.wh
 }
 
@@ -80,7 +101,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	drawCard := func(x, y, c int) {
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(x-(g.tw/2)), float64(y-(g.th/2)))
+		op.GeoM.Translate(float64(x), float64(y))
 		screen.DrawImage(tiles.Item(c-1), op)
 	}
 
@@ -90,15 +111,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	c1 := cards[0]
 	c2 := cards[1]
 
-	drawCard(g.r+border, g.wh/2, c1[0])
-	drawCard(g.ww-g.r-border, g.wh/2, c2[0])
+	for i := range g.lhits {
+		l := g.lhits[i]
+		r := g.rhits[i]
 
-	for i := 0; i < sides; i++ {
-		x := int(float64(g.r/2) * math.Cos(2*math.Pi*float64(i)/sides))
-		y := int(float64(g.r/2) * math.Sin(2*math.Pi*float64(i)/sides))
-
-		drawCard(g.r+border+x, g.wh/2+y, c1[i+1])
-		drawCard(g.ww-g.r-border+x, g.wh/2+y, c2[i+1])
+		drawCard(l.R.Min.X, l.R.Min.Y, c1[i])
+		drawCard(r.R.Min.X, r.R.Min.Y, c2[i])
 	}
 
 	g.redraw = false
