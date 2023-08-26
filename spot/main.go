@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"log"
@@ -12,6 +13,7 @@ import (
 	_ "embed"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/raff/ebi-games/util"
@@ -37,6 +39,11 @@ type Game struct {
 	rhits Hits[int]
 
 	highlight *Hit[int]
+
+	timer int
+
+	done   chan bool
+	ticker *time.Ticker
 
 	redraw bool
 }
@@ -76,6 +83,22 @@ func (g *Game) Init() (int, int) {
 			g.lhits = append(g.lhits, Hit[int]{getRect(g.rc+border+x, g.wh/2+y), i + 1})
 			g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.rc-border+x, g.wh/2+y), i + 1})
 		}
+
+		g.done = make(chan bool)
+		g.ticker = time.NewTicker(time.Second)
+
+		go func() {
+			for {
+				select {
+				case <-g.done:
+					return
+
+				case <-g.ticker.C:
+					g.timer++
+					g.redraw = true
+				}
+			}
+		}()
 	}
 
 	for i := 0; i <= sides; i++ {
@@ -83,6 +106,7 @@ func (g *Game) Init() (int, int) {
 		g.rhits[i].Value = cards[1][i]
 	}
 
+	g.timer = 0
 	g.redraw = true
 	return g.ww, g.wh
 }
@@ -107,6 +131,7 @@ func (g *Game) Update() error {
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			if r2 := g.rhits.FindValue(r.Value); r2 != nil {
 				cards = append(cards[1:], cards[0])
+				log.Println(g.timer)
 				g.Init()
 			}
 		}
@@ -124,6 +149,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	screen.Fill(color.Black)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%d", g.timer), g.ww/2, g.wh-20)
 
 	drawCard := func(x, y, c int) {
 		op := &ebiten.DrawImageOptions{}
@@ -165,5 +191,10 @@ func main() {
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init())
+
+	defer func() {
+		g.done <- true
+	}()
+
 	ebiten.RunGame(g)
 }
