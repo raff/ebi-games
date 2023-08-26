@@ -31,7 +31,7 @@ var (
 type Game struct {
 	tw, th int // tile width, height
 	ww, wh int // window width, height
-	r      int // card radius
+	rc, rs int // card radius and symbol radius
 
 	lhits Hits[int]
 	rhits Hits[int]
@@ -53,9 +53,10 @@ func (g *Game) Init() (int, int) {
 
 	g.tw, g.th = tiles.Width, tiles.Height
 
-	g.r = max(g.tw*4, g.th*4) / 2
+	g.rc = max(g.tw*4, g.th*4) / 2
+	g.rs = max(g.tw, g.th) / 2
 
-	d := g.r * 2
+	d := g.rc * 2
 
 	g.ww = border + d + border + border + d + border
 	g.wh = border + d + border
@@ -66,15 +67,15 @@ func (g *Game) Init() (int, int) {
 		return image.Rect(x, y, x+g.tw, y+g.th)
 	}
 
-	g.lhits = append(g.lhits, Hit[int]{getRect(g.r+border, g.wh/2), 0})
-	g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.r-border, g.wh/2), 0})
+	g.lhits = append(g.lhits, Hit[int]{getRect(g.rc+border, g.wh/2), 0})
+	g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.rc-border, g.wh/2), 0})
 
 	for i := 0; i < sides; i++ {
-		x := int(float64(g.r/2) * math.Cos(2*math.Pi*float64(i)/sides))
-		y := int(float64(g.r/2) * math.Sin(2*math.Pi*float64(i)/sides))
+		x := int(float64(g.rc/2) * math.Cos(2*math.Pi*float64(i)/sides))
+		y := int(float64(g.rc/2) * math.Sin(2*math.Pi*float64(i)/sides))
 
-		g.lhits = append(g.lhits, Hit[int]{getRect(g.r+border+x, g.wh/2+y), i + 1})
-		g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.r-border+x, g.wh/2+y), i + 1})
+		g.lhits = append(g.lhits, Hit[int]{getRect(g.rc+border+x, g.wh/2+y), i + 1})
+		g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.rc-border+x, g.wh/2+y), i + 1})
 	}
 
 	g.redraw = true
@@ -94,12 +95,10 @@ func (g *Game) Update() error {
 
 	if r := g.lhits.Find(ebiten.CursorPosition()); r != nil {
 		if g.highlight == nil || r.Value != g.highlight.Value {
-			log.Println("found", r)
 			g.highlight = r
 			g.redraw = true
 		}
 	} else if g.highlight != nil {
-		log.Println("unfound", g.highlight)
 		g.highlight = nil
 		g.redraw = true
 	}
@@ -120,8 +119,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screen.DrawImage(tiles.Item(c-1), op)
 	}
 
-	vector.DrawFilledCircle(screen, float32(g.r+border), float32(g.wh/2), float32(g.r), color.White, false)
-	vector.DrawFilledCircle(screen, float32(g.ww-g.r-border), float32(g.wh/2), float32(g.r), color.White, false)
+	vector.DrawFilledCircle(screen, float32(g.rc+border), float32(g.wh/2), float32(g.rc), color.White, false)
+	vector.DrawFilledCircle(screen, float32(g.ww-g.rc-border), float32(g.wh/2), float32(g.rc), color.White, false)
 
 	c1 := cards[0]
 	c2 := cards[1]
@@ -136,8 +135,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	if g.highlight != nil {
 		r := g.highlight.R
-		log.Println("highlight", r)
-		vector.StrokeRect(screen, float32(r.Min.X), float32(r.Min.Y), float32(r.Dx()), float32(r.Dy()), 3, color.Black, false)
+		x := r.Dx()/2 + r.Min.X
+		y := r.Dy()/2 + r.Min.Y
+		vector.StrokeCircle(screen, float32(x), float32(y), float32(g.rs), 3, color.Black, false)
 	}
 
 	g.redraw = false
