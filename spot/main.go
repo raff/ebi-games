@@ -49,33 +49,38 @@ func (g *Game) Init() (int, int) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		g.tw, g.th = tiles.Width, tiles.Height
+
+		g.rc = max(g.tw*4, g.th*4) / 2
+		g.rs = max(g.tw, g.th) / 2
+
+		d := g.rc * 2
+
+		g.ww = border + d + border + border + d + border
+		g.wh = border + d + border
+
+		getRect := func(x, y int) image.Rectangle {
+			x = x - (g.tw / 2)
+			y = y - (g.th / 2)
+			return image.Rect(x, y, x+g.tw, y+g.th)
+		}
+
+		g.lhits = append(g.lhits, Hit[int]{getRect(g.rc+border, g.wh/2), 0})
+		g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.rc-border, g.wh/2), 0})
+
+		for i := 0; i < sides; i++ {
+			x := int(float64(g.rc/2) * math.Cos(2*math.Pi*float64(i)/sides))
+			y := int(float64(g.rc/2) * math.Sin(2*math.Pi*float64(i)/sides))
+
+			g.lhits = append(g.lhits, Hit[int]{getRect(g.rc+border+x, g.wh/2+y), i + 1})
+			g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.rc-border+x, g.wh/2+y), i + 1})
+		}
 	}
 
-	g.tw, g.th = tiles.Width, tiles.Height
-
-	g.rc = max(g.tw*4, g.th*4) / 2
-	g.rs = max(g.tw, g.th) / 2
-
-	d := g.rc * 2
-
-	g.ww = border + d + border + border + d + border
-	g.wh = border + d + border
-
-	getRect := func(x, y int) image.Rectangle {
-		x = x - (g.tw / 2)
-		y = y - (g.th / 2)
-		return image.Rect(x, y, x+g.tw, y+g.th)
-	}
-
-	g.lhits = append(g.lhits, Hit[int]{getRect(g.rc+border, g.wh/2), 0})
-	g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.rc-border, g.wh/2), 0})
-
-	for i := 0; i < sides; i++ {
-		x := int(float64(g.rc/2) * math.Cos(2*math.Pi*float64(i)/sides))
-		y := int(float64(g.rc/2) * math.Sin(2*math.Pi*float64(i)/sides))
-
-		g.lhits = append(g.lhits, Hit[int]{getRect(g.rc+border+x, g.wh/2+y), i + 1})
-		g.rhits = append(g.rhits, Hit[int]{getRect(g.ww-g.rc-border+x, g.wh/2+y), i + 1})
+	for i := 0; i <= sides; i++ {
+		g.lhits[i].Value = cards[0][i]
+		g.rhits[i].Value = cards[1][i]
 	}
 
 	g.redraw = true
@@ -89,7 +94,7 @@ func (g *Game) Update() error {
 
 	case inpututil.IsKeyJustPressed(ebiten.KeyR): // (R)edraw
 		shuffle(cards)
-		g.redraw = true
+		g.Init()
 
 	}
 
@@ -97,6 +102,13 @@ func (g *Game) Update() error {
 		if g.highlight == nil || r.Value != g.highlight.Value {
 			g.highlight = r
 			g.redraw = true
+		}
+
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			if r2 := g.rhits.FindValue(r.Value); r2 != nil {
+				cards = append(cards[1:], cards[0])
+				g.Init()
+			}
 		}
 	} else if g.highlight != nil {
 		g.highlight = nil
@@ -122,15 +134,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	vector.DrawFilledCircle(screen, float32(g.rc+border), float32(g.wh/2), float32(g.rc), color.White, false)
 	vector.DrawFilledCircle(screen, float32(g.ww-g.rc-border), float32(g.wh/2), float32(g.rc), color.White, false)
 
-	c1 := cards[0]
-	c2 := cards[1]
-
 	for i := range g.lhits {
 		l := g.lhits[i]
 		r := g.rhits[i]
 
-		drawCard(l.R.Min.X, l.R.Min.Y, c1[i])
-		drawCard(r.R.Min.X, r.R.Min.Y, c2[i])
+		drawCard(l.R.Min.X, l.R.Min.Y, l.Value)
+		drawCard(r.R.Min.X, r.R.Min.Y, r.Value)
 	}
 
 	if g.highlight != nil {
