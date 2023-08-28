@@ -133,6 +133,9 @@ func (g *Game) Update() error {
 				cards = append(cards[1:], cards[0])
 				log.Println(g.timer)
 				g.Init()
+				audioPlay(AudioHit)
+			} else {
+				audioPlay(AudioMiss)
 			}
 		}
 	} else if g.highlight != nil {
@@ -186,6 +189,8 @@ func main() {
 	rand.Seed(time.Now().Unix())
 
 	g := &Game{}
+
+	audioInit()
 
 	ebiten.SetWindowTitle("Spot!")
 	ebiten.SetVsyncEnabled(false)
