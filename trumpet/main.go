@@ -129,6 +129,8 @@ var (
 
 	audioContext = audio.NewContext(sampleRate)
 	notes        map[ebiten.Key]*audio.Player
+	tnotes       map[int]*audio.Player
+	tvalves      = 0
 )
 
 func newWavPlayer(b []byte) *audio.Player {
@@ -153,9 +155,9 @@ func init() {
 		ebiten.Key4:     newWavPlayer(n03),
 		ebiten.Key5:     newWavPlayer(n04),
 		ebiten.Key6:     newWavPlayer(n05),
-		ebiten.Key7:     newWavPlayer(n06),
+		ebiten.Key7:     newWavPlayer(n06), // Bb
 		ebiten.Key8:     newWavPlayer(n07),
-		ebiten.Key9:     newWavPlayer(n08),             // C4
+		ebiten.Key9:     newWavPlayer(n08), // C4
 		ebiten.Key0:     newWavPlayer(n09),
 		ebiten.KeyMinus: newWavPlayer(n10),
 		ebiten.KeyEqual: newWavPlayer(n11),
@@ -168,7 +170,7 @@ func init() {
 		ebiten.KeyY:            newWavPlayer(n17),
 		ebiten.KeyU:            newWavPlayer(n18),
 		ebiten.KeyI:            newWavPlayer(n19),
-		ebiten.KeyO:            newWavPlayer(n20),      // C5
+		ebiten.KeyO:            newWavPlayer(n20), // C5
 		ebiten.KeyP:            newWavPlayer(n21),
 		ebiten.KeyBracketLeft:  newWavPlayer(n22),
 		ebiten.KeyBracketRight: newWavPlayer(n23),
@@ -181,10 +183,21 @@ func init() {
 		ebiten.KeyH:         newWavPlayer(n29),
 		ebiten.KeyJ:         newWavPlayer(n30),
 		ebiten.KeyK:         newWavPlayer(n31),
-		ebiten.KeyL:         newWavPlayer(n32),         // C6
+		ebiten.KeyL:         newWavPlayer(n32), // C6
 		ebiten.KeySemicolon: newWavPlayer(n33),
 		ebiten.KeyQuote:     newWavPlayer(n34),
 		ebiten.KeyEnter:     newWavPlayer(n35),
+	}
+
+	tnotes = map[int]*audio.Player{
+		0x100: notes[ebiten.Key7],
+		0x107: notes[ebiten.Key8],
+		0x105: notes[ebiten.Key9],
+		0x103: notes[ebiten.Key0],
+		0x106: notes[ebiten.KeyMinus],
+		0x101: notes[ebiten.KeyMinus],
+		0x104: notes[ebiten.KeyEqual],
+		0x102: notes[ebiten.KeyQ],
 	}
 }
 
@@ -215,6 +228,56 @@ func (g *Game) Update() error {
 		if inpututil.IsKeyJustPressed(k) {
 			v.Rewind()
 			v.Play()
+		}
+	}
+
+	valves := tvalves
+
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
+		valves = (valves & 7) | 1
+	} else {
+		valves = valves & 6
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
+		valves = (valves & 7) | 2
+	} else {
+		valves = valves & 5
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
+		valves = (valves & 7) | 4
+	} else {
+		valves = valves & 3
+	}
+
+	switch {
+	case ebiten.IsKeyPressed(ebiten.KeyMeta):
+		valves |= 0x10
+	case ebiten.IsKeyPressed(ebiten.KeyAlt):
+		valves |= 0x20
+	case ebiten.IsKeyPressed(ebiten.KeyControl):
+		valves |= 0x40
+	case ebiten.IsKeyPressed(ebiten.KeyShift):
+		valves |= 0x80
+	case ebiten.IsKeyPressed(ebiten.KeySpace):
+		valves |= 0x100
+	}
+
+	if valves != tvalves {
+		if p, ok := tnotes[tvalves]; ok {
+			log.Println("pause", tvalves, p)
+			p.Pause()
+		}
+
+		tvalves = valves
+		log.Println("valves", valves)
+
+		if p, ok := tnotes[tvalves]; ok {
+			log.Println("play", tvalves, p)
+
+			p.Rewind()
+			p.Play()
 		}
 	}
 
