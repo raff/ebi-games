@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -186,11 +187,16 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func main() {
+	audio := flag.Bool("audio", true, "play audio")
+	flag.Parse()
+
 	rand.Seed(time.Now().Unix())
 
 	g := &Game{}
 
-	audioInit()
+	if *audio {
+		audioInit()
+	}
 
 	ebiten.SetWindowTitle("Spot!")
 	ebiten.SetVsyncEnabled(false)
