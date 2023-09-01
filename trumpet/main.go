@@ -18,6 +18,67 @@ const (
 	screenHeight = 100
 )
 
+type Note int
+
+const (
+	O3_E Note = iota
+	O3_F
+	O3_Fx
+	O3_G
+	O3_Gx
+	O3_A
+	O3_Ax
+	O3_B
+
+	O4_C
+	O4_Cx
+	O4_D
+	O4_Dx
+	O4_E
+	O4_F
+	O4_Fx
+	O4_G
+	O4_Gx
+	O4_A
+	O4_Ax
+	O4_B
+
+	O5_C
+	O5_Cx
+	O5_D
+	O5_Dx
+	O5_E
+	O5_F
+	O5_Fx
+	O5_G
+	O5_Gx
+	O5_A
+	O5_Ax
+	O5_B
+
+	O6_C
+	O6_Cx
+	O6_D
+	O6_Dx
+
+	// Partials
+	P1 = 0x100
+	P2 = 0x200
+	P3 = 0x400
+	P4 = 0x800
+	P5 = 0x1000
+
+	// Valves
+	V0   = 0b000 // open
+	V1   = 0b100 // first valve
+	V2   = 0b010 // second
+	V3   = 0b001 // third
+	V12  = V1 | V2
+	V13  = V1 | V3
+	V23  = V2 | V3
+	V123 = V1 | V2 | V3
+)
+
 var (
 	//go:embed assets/_1-E_3.wav
 	n00 []byte
@@ -128,8 +189,9 @@ var (
 	n35 []byte
 
 	audioContext = audio.NewContext(sampleRate)
-	notes        map[ebiten.Key]*audio.Player
-	tnotes       map[int]*audio.Player
+	notes        map[Note]*audio.Player
+	knotes       map[ebiten.Key]Note
+	tnotes       map[int]Note
 	tvalves      = 0
 )
 
@@ -148,56 +210,129 @@ func newWavPlayer(b []byte) *audio.Player {
 }
 
 func init() {
-	notes = map[ebiten.Key]*audio.Player{
-		ebiten.Key1:     newWavPlayer(n00),
-		ebiten.Key2:     newWavPlayer(n01),
-		ebiten.Key3:     newWavPlayer(n02),
-		ebiten.Key4:     newWavPlayer(n03),
-		ebiten.Key5:     newWavPlayer(n04),
-		ebiten.Key6:     newWavPlayer(n05),
-		ebiten.Key7:     newWavPlayer(n06), // Bb
-		ebiten.Key8:     newWavPlayer(n07),
-		ebiten.Key9:     newWavPlayer(n08), // C4
-		ebiten.Key0:     newWavPlayer(n09),
-		ebiten.KeyMinus: newWavPlayer(n10),
-		ebiten.KeyEqual: newWavPlayer(n11),
+	notes = map[Note]*audio.Player{
+		O3_E:  newWavPlayer(n00), // E
+		O3_F:  newWavPlayer(n01), // F
+		O3_Fx: newWavPlayer(n02), // F#
+		O3_G:  newWavPlayer(n03), // G
+		O3_Gx: newWavPlayer(n04), // G#
+		O3_A:  newWavPlayer(n05), // A
+		O3_Ax: newWavPlayer(n06), // A# / Bb
+		O3_B:  newWavPlayer(n07), // B
+		O4_C:  newWavPlayer(n08), // C4
+		O4_Cx: newWavPlayer(n09), // C#
+		O4_D:  newWavPlayer(n10), // D
+		O4_Dx: newWavPlayer(n11), // D# / Eb
 
-		ebiten.KeyQ:            newWavPlayer(n12),
-		ebiten.KeyW:            newWavPlayer(n13),
-		ebiten.KeyE:            newWavPlayer(n14),
-		ebiten.KeyR:            newWavPlayer(n15),
-		ebiten.KeyT:            newWavPlayer(n16),
-		ebiten.KeyY:            newWavPlayer(n17),
-		ebiten.KeyU:            newWavPlayer(n18),
-		ebiten.KeyI:            newWavPlayer(n19),
-		ebiten.KeyO:            newWavPlayer(n20), // C5
-		ebiten.KeyP:            newWavPlayer(n21),
-		ebiten.KeyBracketLeft:  newWavPlayer(n22),
-		ebiten.KeyBracketRight: newWavPlayer(n23),
+		O4_E:  newWavPlayer(n12), // E
+		O4_F:  newWavPlayer(n13), // F
+		O4_Fx: newWavPlayer(n14), // F#
+		O4_G:  newWavPlayer(n15), // G
+		O4_Gx: newWavPlayer(n16), // G#
+		O4_A:  newWavPlayer(n17), // A
+		O4_Ax: newWavPlayer(n18), // A# / Bb
+		O4_B:  newWavPlayer(n19), // B
+		O5_C:  newWavPlayer(n20), // C5
+		O5_Cx: newWavPlayer(n21), // C#
+		O5_D:  newWavPlayer(n22), // D
+		O5_Dx: newWavPlayer(n23), // D# / Eb
 
-		ebiten.KeyA:         newWavPlayer(n24),
-		ebiten.KeyS:         newWavPlayer(n25),
-		ebiten.KeyD:         newWavPlayer(n26),
-		ebiten.KeyF:         newWavPlayer(n27),
-		ebiten.KeyG:         newWavPlayer(n28),
-		ebiten.KeyH:         newWavPlayer(n29),
-		ebiten.KeyJ:         newWavPlayer(n30),
-		ebiten.KeyK:         newWavPlayer(n31),
-		ebiten.KeyL:         newWavPlayer(n32), // C6
-		ebiten.KeySemicolon: newWavPlayer(n33),
-		ebiten.KeyQuote:     newWavPlayer(n34),
-		ebiten.KeyEnter:     newWavPlayer(n35),
+		O5_E:  newWavPlayer(n24), // E
+		O5_F:  newWavPlayer(n25), // F
+		O5_Fx: newWavPlayer(n26), // F#
+		O5_G:  newWavPlayer(n27), // G
+		O5_Gx: newWavPlayer(n28), // G#
+		O5_A:  newWavPlayer(n29), // A
+		O5_Ax: newWavPlayer(n30), // A# / Bb
+		O5_B:  newWavPlayer(n31), // B
+		O6_C:  newWavPlayer(n32), // C6
+		O6_Cx: newWavPlayer(n33), // C#
+		O6_D:  newWavPlayer(n34), // D
+		O6_Dx: newWavPlayer(n35), // D#
 	}
 
-	tnotes = map[int]*audio.Player{
-		0x100: notes[ebiten.Key7],
-		0x107: notes[ebiten.Key8],
-		0x105: notes[ebiten.Key9],
-		0x103: notes[ebiten.Key0],
-		0x106: notes[ebiten.KeyMinus],
-		0x101: notes[ebiten.KeyMinus],
-		0x104: notes[ebiten.KeyEqual],
-		0x102: notes[ebiten.KeyQ],
+	knotes = map[ebiten.Key]Note{
+		ebiten.Key1:     O3_E,
+		ebiten.Key2:     O3_F,
+		ebiten.Key3:     O3_Fx,
+		ebiten.Key4:     O3_G,
+		ebiten.Key5:     O3_Gx,
+		ebiten.Key6:     O3_A,
+		ebiten.Key7:     O3_Ax,
+		ebiten.Key8:     O3_B,
+		ebiten.Key9:     O4_C,
+		ebiten.Key0:     O4_Cx,
+		ebiten.KeyMinus: O4_D,
+		ebiten.KeyEqual: O4_Dx,
+
+		ebiten.KeyQ:            O4_E,
+		ebiten.KeyW:            O4_F,
+		ebiten.KeyE:            O4_Fx,
+		ebiten.KeyR:            O4_G,
+		ebiten.KeyT:            O4_Gx,
+		ebiten.KeyY:            O4_A,
+		ebiten.KeyU:            O4_Ax,
+		ebiten.KeyI:            O4_B,
+		ebiten.KeyO:            O5_C,
+		ebiten.KeyP:            O5_Cx,
+		ebiten.KeyBracketLeft:  O5_D,
+		ebiten.KeyBracketRight: O5_Dx,
+
+		ebiten.KeyA:         O5_E,
+		ebiten.KeyS:         O5_F,
+		ebiten.KeyD:         O5_Fx,
+		ebiten.KeyF:         O5_G,
+		ebiten.KeyG:         O5_Gx,
+		ebiten.KeyH:         O5_A,
+		ebiten.KeyJ:         O5_Ax,
+		ebiten.KeyK:         O5_B,
+		ebiten.KeyL:         O6_C,
+		ebiten.KeySemicolon: O6_Cx,
+		ebiten.KeyQuote:     O6_D,
+		ebiten.KeyEnter:     O6_Dx,
+	}
+
+	tnotes = map[int]Note{
+		P1 | V123: O3_E,
+		P1 | V13:  O3_F,
+		P1 | V23:  O3_Fx,
+		P1 | V12:  O3_G,
+		P1 | V1:   O3_Gx,
+		P1 | V2:   O3_A,
+		P1 | V0:   O3_Ax,
+
+		P2 | V123: O3_B,
+		P2 | V13:  O4_C,
+		P2 | V23:  O4_Cx,
+		P2 | V12:  O4_D,
+		P2 | V1:   O4_Dx,
+		P2 | V2:   O4_E,
+		P2 | V0:   O4_F,
+
+		P3 | V23: O4_Fx,
+		P3 | V12: O4_G,
+		P3 | V1:  O4_Gx,
+		P3 | V2:  O4_A,
+		P3 | V0:  O4_Ax,
+
+		P4 | V12: O4_B,
+		P4 | V1:  O5_C,
+		P4 | V2:  O5_Cx,
+		P4 | V0:  O5_D,
+
+		P5 | V1: O5_Dx,
+		P5 | V2: O5_E,
+		P5 | V0: O5_F,
+	}
+}
+
+func pplayNote(n Note, play bool) {
+	p := notes[n]
+	if play {
+		p.Rewind()
+		p.Play()
+	} else {
+		p.Pause()
 	}
 }
 
@@ -214,9 +349,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Update() error {
-	for k, v := range notes {
+	for k, v := range knotes {
 		if inpututil.IsKeyJustReleased(k) {
-			v.Pause()
+			pplayNote(v, false)
 		}
 	}
 
@@ -224,60 +359,55 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 	}
 
-	for k, v := range notes {
+	for k, v := range knotes {
 		if inpututil.IsKeyJustPressed(k) {
-			v.Rewind()
-			v.Play()
+			pplayNote(v, true)
 		}
 	}
 
-	valves := tvalves
+	valves := tvalves & V123
 
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
-		valves = (valves & 7) | 1
+		valves |= V1
 	} else {
-		valves = valves & 6
+		valves &= V23
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
-		valves = (valves & 7) | 2
+		valves |= V2
 	} else {
-		valves = valves & 5
+		valves &= V13
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
-		valves = (valves & 7) | 4
+		valves |= V3
 	} else {
-		valves = valves & 3
+		valves &= V12
 	}
 
 	switch {
-	case ebiten.IsKeyPressed(ebiten.KeyMeta):
-		valves |= 0x10
-	case ebiten.IsKeyPressed(ebiten.KeyAlt):
-		valves |= 0x20
-	case ebiten.IsKeyPressed(ebiten.KeyControl):
-		valves |= 0x40
 	case ebiten.IsKeyPressed(ebiten.KeyShift):
-		valves |= 0x80
+		valves |= P5
+	case ebiten.IsKeyPressed(ebiten.KeyControl):
+		valves |= P4
+	case ebiten.IsKeyPressed(ebiten.KeyAlt):
+		valves |= P3
+	case ebiten.IsKeyPressed(ebiten.KeyMeta):
+		valves |= P2
 	case ebiten.IsKeyPressed(ebiten.KeySpace):
-		valves |= 0x100
+		valves |= P1
 	}
 
 	if valves != tvalves {
-		if p, ok := tnotes[tvalves]; ok {
-			log.Println("pause", tvalves, p)
-			p.Pause()
+		if n, ok := tnotes[tvalves]; ok {
+			pplayNote(n, false)
 		}
 
 		tvalves = valves
 		log.Println("valves", valves)
 
-		if p, ok := tnotes[tvalves]; ok {
-			log.Println("play", tvalves, p)
-
-			p.Rewind()
-			p.Play()
+		if n, ok := tnotes[tvalves]; ok {
+			pplayNote(n, true)
 		}
 	}
 
