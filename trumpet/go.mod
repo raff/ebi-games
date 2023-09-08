@@ -2,7 +2,10 @@ module github.com/raff/ebi-games/trumpet
 
 go 1.21.0
 
-require github.com/hajimehoshi/ebiten/v2 v2.5.7
+require (
+	github.com/hajimehoshi/ebiten/v2 v2.5.9
+	github.com/raff/ebi-games/util v0.0.0-20230901021951-735bd0aab5b6
+)
 
 require (
 	github.com/ebitengine/purego v0.4.0 // indirect

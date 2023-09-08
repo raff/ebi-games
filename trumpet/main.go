@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/raff/ebi-games/util"
 )
 
 const (
@@ -19,6 +20,9 @@ const (
 )
 
 var (
+	//go:embed assets/trumpet_valves.png
+	trumpetPng []byte
+
 	//go:embed assets/_1-E_3.wav
 	n00 []byte
 
@@ -131,6 +135,8 @@ var (
 	notes        map[ebiten.Key]*audio.Player
 	tnotes       map[int]*audio.Player
 	tvalves      = 0
+
+	tiles *util.Tiles
 )
 
 func newWavPlayer(b []byte) *audio.Player {
@@ -198,6 +204,12 @@ func init() {
 		0x101: notes[ebiten.KeyMinus],
 		0x104: notes[ebiten.KeyEqual],
 		0x102: notes[ebiten.KeyQ],
+	}
+
+	if t, err := util.ReadTiles(bytes.NewBuffer(trumpetPng), 2, 4); err == nil {
+                tiles = t
+	} else {
+		log.Fatalf("%+v", err)
 	}
 }
 
