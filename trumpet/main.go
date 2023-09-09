@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	_ "embed"
-	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -14,9 +13,7 @@ import (
 )
 
 const (
-	sampleRate   = 8000
-	screenWidth  = 100
-	screenHeight = 100
+	sampleRate = 8000
 )
 
 type Note int
@@ -199,6 +196,9 @@ var (
 	tvalves      = 0
 
 	tiles *util.Tiles
+
+	screenWidth  int
+	screenHeight int
 )
 
 func newWavPlayer(b []byte) *audio.Player {
@@ -330,6 +330,15 @@ func init() {
 		P5 | V2: O5_E,
 		P5 | V0: O5_F,
 	}
+
+	if t, err := util.ReadTiles(bytes.NewBuffer(trumpetPng), 2, 4); err == nil {
+		tiles = t
+	} else {
+		log.Fatalf("%+v", err)
+	}
+
+	screenWidth = tiles.Width
+	screenHeight = tiles.Height
 }
 
 func pplayNote(n Note, play bool) {
@@ -340,15 +349,10 @@ func pplayNote(n Note, play bool) {
 	} else {
 		p.Pause()
 	}
-
-	if t, err := util.ReadTiles(bytes.NewBuffer(trumpetPng), 2, 4); err == nil {
-                tiles = t
-	} else {
-		log.Fatalf("%+v", err)
-	}
 }
 
 type Game struct {
+	redraw bool
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -356,8 +360,14 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{0x80, 0x80, 0xc0, 0xff})
-	//ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f", ebiten.ActualTPS()))
+	if !g.redraw {
+		return
+	}
+
+	ima := tiles.Item(tvalves & V123)
+	screen.DrawImage(ima, &ebiten.DrawImageOptions{})
+
+	g.redraw = false
 }
 
 func (g *Game) Update() error {
@@ -421,6 +431,8 @@ func (g *Game) Update() error {
 		if n, ok := tnotes[tvalves]; ok {
 			pplayNote(n, true)
 		}
+
+		g.redraw = true
 	}
 
 	return nil
@@ -429,7 +441,9 @@ func (g *Game) Update() error {
 func main() {
 	ebiten.SetWindowSize(screenWidth*2, screenHeight*2)
 	ebiten.SetWindowTitle("Trumpetine")
-	if err := ebiten.RunGame(&Game{}); err != nil {
+	ebiten.SetVsyncEnabled(false)
+	ebiten.SetScreenClearedEveryFrame(false)
+	if err := ebiten.RunGame(&Game{redraw: true}); err != nil {
 		log.Fatal(err)
 	}
 }
