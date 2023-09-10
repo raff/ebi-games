@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	_ "embed"
+        "flag"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -199,6 +200,8 @@ var (
 
 	screenWidth  int
 	screenHeight int
+
+        playAudio = true
 )
 
 func newWavPlayer(b []byte) *audio.Player {
@@ -342,6 +345,10 @@ func init() {
 }
 
 func pplayNote(n Note, play bool) {
+        if !playAudio {
+                return
+        }
+
 	p := notes[n]
 	if play {
 		p.Rewind()
@@ -439,6 +446,9 @@ func (g *Game) Update() error {
 }
 
 func main() {
+        flag.BoolVar(&playAudio, "audio", playAudio, "play notes")
+        flag.Parse()
+
 	ebiten.SetWindowSize(screenWidth*2, screenHeight*2)
 	ebiten.SetWindowTitle("Trumpetine")
 	ebiten.SetVsyncEnabled(false)
