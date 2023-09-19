@@ -121,7 +121,6 @@ type Game struct {
 	wh int // window height
 
 	scale float64
-
 	drawOp ebiten.DrawImageOptions
 }
 
