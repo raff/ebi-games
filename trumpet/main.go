@@ -3,13 +3,15 @@ package main
 import (
 	"bytes"
 	_ "embed"
-        "flag"
+	"flag"
+	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/raff/ebi-games/util"
 )
 
@@ -66,6 +68,8 @@ const (
 	P3 = 0x400
 	P4 = 0x800
 	P5 = 0x1000
+
+	PMASK = 0xFF00
 
 	// Valves
 	V0   = 0b000 // open
@@ -196,12 +200,16 @@ var (
 	tnotes       map[int]Note
 	tvalves      = 0
 
+	xscore            = map[int]float32{P1: 72, P2: 106, P3: 145, P4: 180, P5: 216}
+	yscore    float32 = 240
+	lineColor         = color.Black
+
 	tiles *util.Tiles
 
 	screenWidth  int
 	screenHeight int
 
-        playAudio = true
+	playAudio = true
 )
 
 func newWavPlayer(b []byte) *audio.Player {
@@ -345,9 +353,9 @@ func init() {
 }
 
 func pplayNote(n Note, play bool) {
-        if !playAudio {
-                return
-        }
+	if !playAudio {
+		return
+	}
 
 	p := notes[n]
 	if play {
@@ -373,6 +381,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	ima := tiles.Item(tvalves & V123)
 	screen.DrawImage(ima, &ebiten.DrawImageOptions{})
+
+	xs := xscore[tvalves&PMASK]
+	if xs != 0 {
+		vector.StrokeLine(screen, xs, yscore, xs+20, yscore, 4, lineColor, false)
+	}
 
 	g.redraw = false
 }
@@ -446,8 +459,8 @@ func (g *Game) Update() error {
 }
 
 func main() {
-        flag.BoolVar(&playAudio, "audio", playAudio, "play notes")
-        flag.Parse()
+	flag.BoolVar(&playAudio, "audio", playAudio, "play notes")
+	flag.Parse()
 
 	ebiten.SetWindowSize(screenWidth*2, screenHeight*2)
 	ebiten.SetWindowTitle("Trumpetine")
