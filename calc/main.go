@@ -7,6 +7,8 @@ import (
 	"image/png"
 	"io"
 	"log"
+	"strconv"
+	"strings"
 
 	_ "embed"
 
@@ -37,10 +39,10 @@ func coords(x, y, w, h int) image.Rectangle {
 const None = ebiten.Key(-2)
 
 var buttons = map[ebiten.Key]image.Rectangle{
-	ebiten.KeyC:      coords(9, 52, 18, 16),
-	ebiten.KeyE:      coords(31, 52, 18, 16),
-	ebiten.KeyEnter:  coords(53, 52, 18, 16), // =
-	ebiten.KeyPeriod: coords(75, 52, 18, 16), // *
+	ebiten.KeyC:     coords(9, 52, 18, 16),
+	ebiten.KeyE:     coords(31, 52, 18, 16),
+	ebiten.KeyEnter: coords(53, 52, 18, 16), // =
+	ebiten.KeyX:     coords(75, 52, 18, 16), // *
 
 	ebiten.Key7:     coords(9, 74, 18, 16),
 	ebiten.Key8:     coords(31, 74, 18, 16),
@@ -57,7 +59,8 @@ var buttons = map[ebiten.Key]image.Rectangle{
 	ebiten.Key3:     coords(53, 118, 18, 16),
 	ebiten.KeyEqual: coords(75, 118, 18, 38), // +
 
-	ebiten.Key0: coords(9, 140, 40, 16),
+	ebiten.Key0:      coords(9, 140, 40, 16),
+	ebiten.KeyPeriod: coords(53, 140, 18, 16),
 }
 
 var displayCoords = coords(13, 33, 77, 9) // display
@@ -65,6 +68,9 @@ var displayCoords = coords(13, 33, 77, 9) // display
 type Game struct {
 	redraw bool
 	sel    ebiten.Key
+
+	acc float64
+	val string
 
 	ima *ebiten.Image
 	inv *ebiten.Image
@@ -142,14 +148,20 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Update() error {
-	if inpututil.IsKeyJustPressed(ebiten.KeyQ) || inpututil.IsKeyJustPressed(ebiten.KeyX) { // (Q)uit or e(X)it
+	if inpututil.IsKeyJustPressed(ebiten.KeyQ) || inpututil.IsKeyJustPressed(ebiten.KeyEscape) { // (Q)uit or ESC
 		return ebiten.Termination
 	}
 
-	for k, _ := range buttons {
-		if ebiten.IsKeyPressed(k) {
-			g.sel = k
-			g.redraw = true
+	p := image.Pt(ebiten.CursorPosition()).Div(g.scale)
+
+	for k, v := range buttons {
+		if ebiten.IsKeyPressed(k) || (ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && p.In(v)) {
+			if g.sel != k {
+				g.sel = k
+				g.redraw = true
+
+				g.processKey(k)
+			}
 			return nil
 		}
 	}
@@ -160,6 +172,58 @@ func (g *Game) Update() error {
 	}
 
 	return nil
+}
+
+func (g *Game) processKey(k ebiten.Key) {
+	switch k {
+	case ebiten.Key0:
+		if g.val != "" {
+			g.val += "0"
+		}
+
+	case ebiten.Key1, ebiten.Key2, ebiten.Key3, ebiten.Key4, ebiten.Key5, ebiten.Key6, ebiten.Key7, ebiten.Key8, ebiten.Key9:
+		g.val += string(k - ebiten.Key0 + '0')
+
+	case ebiten.KeyPeriod: // .
+		if !strings.Contains(g.val, ".") {
+			g.val += "."
+		}
+
+	case ebiten.KeyE: // exponent
+
+	case ebiten.KeyEqual: // +
+		v, _ := strconv.ParseFloat(g.val, 64)
+		g.acc += v
+		g.val = ""
+
+	case ebiten.KeyMinus: // -
+		v, _ := strconv.ParseFloat(g.val, 64)
+		g.acc -= v
+		g.val = ""
+
+	case ebiten.KeyX: // *
+		v, _ := strconv.ParseFloat(g.val, 64)
+		g.acc *= v
+		g.val = ""
+
+	case ebiten.KeySlash: // /
+		v, _ := strconv.ParseFloat(g.val, 64)
+		g.acc /= v
+		g.val = ""
+
+	case ebiten.KeyC: // clear
+		if g.val == "" {
+			g.acc = 0
+		} else {
+			g.val = ""
+		}
+
+	case ebiten.KeyEnter: // =
+		g.acc, _ = strconv.ParseFloat(g.val, 64)
+		g.val = ""
+	}
+
+	log.Println("acc:", g.acc, "val:", g.val)
 }
 
 func main() {
