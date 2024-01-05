@@ -268,7 +268,7 @@ func (g *Game) Init(w, h int) (int, int) {
 		currw := g.world
 		cw, ch := currw.Width(), currw.Height()
 
-		g.world = matrix.New[int](hcount, vcount, false)
+		g.world = matrix.New[int](hcount, vcount, true)
 
 		if cw != 0 && ch != 0 {
 			if hcount >= cw || vcount >= ch {

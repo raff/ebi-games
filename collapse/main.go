@@ -137,7 +137,7 @@ func (g *Game) Init(w, h int) (int, int) {
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(bgColor)
 
-		g.blocks = matrix.New[int](hcount, vcount, false)
+		g.blocks = matrix.New[int](hcount, vcount, true)
 	}
 
 	for y := 0; y < vcount; y++ {
