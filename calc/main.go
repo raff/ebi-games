@@ -71,6 +71,7 @@ type Game struct {
 
 	acc float64
 	val string
+	op  ebiten.Key
 
 	ima *ebiten.Image
 	inv *ebiten.Image
@@ -103,6 +104,7 @@ func newGame(scale int) *Game {
 
 	g := &Game{
 		redraw: true,
+		op:     None,
 		ima:    ima,
 		inv:    inv,
 		iw:     iw,
@@ -160,9 +162,9 @@ func (g *Game) drawDisplay(screen *ebiten.Image) {
 	}
 
 	v := strconv.FormatFloat(d, 'g', -1, 64)
-        if strings.HasSuffix(g.val, ".") {
-            v += "."
-        }
+	if strings.HasSuffix(g.val, ".") {
+		v += "."
+	}
 
 	for _, c := range v {
 		if c == '.' {
@@ -241,6 +243,27 @@ func (g *Game) processKey(k ebiten.Key) {
 
 	case ebiten.KeyE: // exponent
 
+	case ebiten.KeyC: // clear
+		g.processOp(k)
+		g.op = None
+
+	default:
+		if g.op != None {
+			g.processOp(g.op)
+		} else {
+			g.processOp(ebiten.KeyEnter)
+		}
+
+		if k == ebiten.KeyEnter {
+			g.op = None
+		} else {
+			g.op = k
+		}
+	}
+}
+
+func (g *Game) processOp(k ebiten.Key) {
+	switch k {
 	case ebiten.KeyEqual: // +
 		v, _ := strconv.ParseFloat(g.val, 64)
 		g.acc += v
