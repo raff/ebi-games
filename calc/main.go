@@ -160,6 +160,9 @@ func (g *Game) drawDisplay(screen *ebiten.Image) {
 	}
 
 	v := strconv.FormatFloat(d, 'g', -1, 64)
+        if strings.HasSuffix(g.val, ".") {
+            v += "."
+        }
 
 	for _, c := range v {
 		if c == '.' {
