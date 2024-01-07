@@ -121,9 +121,9 @@ func newGame(scale int) *Game {
 	g.digits[1] = g.ima.SubImage(dcoords(ebiten.Key1)).(*ebiten.Image)
 	g.digits[2] = g.ima.SubImage(dcoords(ebiten.Key2)).(*ebiten.Image)
 	g.digits[3] = g.ima.SubImage(dcoords(ebiten.Key3)).(*ebiten.Image)
-	g.digits[5] = g.ima.SubImage(dcoords(ebiten.Key4)).(*ebiten.Image)
+	g.digits[4] = g.ima.SubImage(dcoords(ebiten.Key4)).(*ebiten.Image)
 	g.digits[5] = g.ima.SubImage(dcoords(ebiten.Key5)).(*ebiten.Image)
-	g.digits[5] = g.ima.SubImage(dcoords(ebiten.Key6)).(*ebiten.Image)
+	g.digits[6] = g.ima.SubImage(dcoords(ebiten.Key6)).(*ebiten.Image)
 	g.digits[7] = g.ima.SubImage(dcoords(ebiten.Key7)).(*ebiten.Image)
 	g.digits[8] = g.ima.SubImage(dcoords(ebiten.Key8)).(*ebiten.Image)
 	g.digits[9] = g.ima.SubImage(dcoords(ebiten.Key9)).(*ebiten.Image)
@@ -148,6 +148,10 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 
 func (g *Game) drawDisplay(screen *ebiten.Image) {
 	var drawOp ebiten.DrawImageOptions
+	drawOp.GeoM.Scale(float64(g.scale), float64(g.scale))
+	drawOp.GeoM.Translate(float64(displayCoords.Min.X*g.scale), float64(displayCoords.Min.Y*g.scale))
+
+	dim := g.digits[0].Bounds()
 
 	d := g.acc
 
@@ -155,32 +159,18 @@ func (g *Game) drawDisplay(screen *ebiten.Image) {
 		d, _ = strconv.ParseFloat(g.val, 64)
 	}
 
-	_ = d
+	v := strconv.FormatFloat(d, 'g', -1, 64)
 
-	drawOp.GeoM.Scale(float64(g.scale), float64(g.scale))
-	drawOp.GeoM.Translate(float64(displayCoords.Min.X*g.scale), float64(displayCoords.Min.Y*g.scale))
+	for _, c := range v {
+		if c == '.' {
+			c = 10
+		} else {
+			c -= '0'
+		}
 
-	dim := g.digits[0].Bounds()
-
-	screen.DrawImage(g.digits[2], &drawOp)
-
-	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
-	screen.DrawImage(g.digits[1], &drawOp)
-
-	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
-	screen.DrawImage(g.digits[0], &drawOp)
-
-	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
-	screen.DrawImage(g.digits[10], &drawOp)
-
-	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
-	screen.DrawImage(g.digits[9], &drawOp)
-
-	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
-	screen.DrawImage(g.digits[8], &drawOp)
-
-	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
-	screen.DrawImage(g.digits[7], &drawOp)
+		screen.DrawImage(g.digits[c], &drawOp)
+		drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
+	}
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
