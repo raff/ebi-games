@@ -79,6 +79,8 @@ type Game struct {
 	ww  int
 	wh  int
 
+	digits [11]*ebiten.Image
+
 	scale  int
 	drawOp ebiten.DrawImageOptions
 }
@@ -110,6 +112,23 @@ func newGame(scale int) *Game {
 		wh:     ih,
 	}
 
+	dcoords := func(k ebiten.Key) image.Rectangle {
+		min := buttons[k].Min
+		return image.Rectangle{Min: image.Point{min.X + 5, min.Y + 5}, Max: image.Point{min.X + 11, min.Y + 13}}
+	}
+
+	g.digits[0] = g.ima.SubImage(dcoords(ebiten.Key0)).(*ebiten.Image)
+	g.digits[1] = g.ima.SubImage(dcoords(ebiten.Key1)).(*ebiten.Image)
+	g.digits[2] = g.ima.SubImage(dcoords(ebiten.Key2)).(*ebiten.Image)
+	g.digits[3] = g.ima.SubImage(dcoords(ebiten.Key3)).(*ebiten.Image)
+	g.digits[5] = g.ima.SubImage(dcoords(ebiten.Key4)).(*ebiten.Image)
+	g.digits[5] = g.ima.SubImage(dcoords(ebiten.Key5)).(*ebiten.Image)
+	g.digits[5] = g.ima.SubImage(dcoords(ebiten.Key6)).(*ebiten.Image)
+	g.digits[7] = g.ima.SubImage(dcoords(ebiten.Key7)).(*ebiten.Image)
+	g.digits[8] = g.ima.SubImage(dcoords(ebiten.Key8)).(*ebiten.Image)
+	g.digits[9] = g.ima.SubImage(dcoords(ebiten.Key9)).(*ebiten.Image)
+	g.digits[10] = g.ima.SubImage(dcoords(ebiten.KeyPeriod)).(*ebiten.Image)
+
 	if scale != 1 {
 		g.drawOp.GeoM.Scale(float64(scale), float64(scale))
 		g.ww = g.ww * g.scale
@@ -127,12 +146,50 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	return g.ww, g.wh
 }
 
+func (g *Game) drawDisplay(screen *ebiten.Image) {
+	var drawOp ebiten.DrawImageOptions
+
+	d := g.acc
+
+	if g.val != "" {
+		d, _ = strconv.ParseFloat(g.val, 64)
+	}
+
+	_ = d
+
+	drawOp.GeoM.Scale(float64(g.scale), float64(g.scale))
+	drawOp.GeoM.Translate(float64(displayCoords.Min.X*g.scale), float64(displayCoords.Min.Y*g.scale))
+
+	dim := g.digits[0].Bounds()
+
+	screen.DrawImage(g.digits[2], &drawOp)
+
+	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
+	screen.DrawImage(g.digits[1], &drawOp)
+
+	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
+	screen.DrawImage(g.digits[0], &drawOp)
+
+	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
+	screen.DrawImage(g.digits[10], &drawOp)
+
+	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
+	screen.DrawImage(g.digits[9], &drawOp)
+
+	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
+	screen.DrawImage(g.digits[8], &drawOp)
+
+	drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
+	screen.DrawImage(g.digits[7], &drawOp)
+}
+
 func (g *Game) Draw(screen *ebiten.Image) {
 	if !g.redraw {
 		return
 	}
 
 	screen.DrawImage(g.ima, &g.drawOp)
+	g.drawDisplay(screen)
 
 	if v, ok := buttons[g.sel]; ok {
 		var drawOp ebiten.DrawImageOptions
