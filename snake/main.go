@@ -36,7 +36,9 @@ func main() {
 	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init(ebiten.ScreenSizeInFullscreen()))
 	ebiten.SetWindowTitle(g.Score())
-	ebiten.RunGame(g)
+	if err := ebiten.RunGame(g); err != nil {
+		panic(err)
+	}
 }
 
 type Dir int

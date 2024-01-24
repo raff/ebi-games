@@ -1,9 +1,9 @@
 github.com/ebitengine/purego v0.5.0 h1:JrMGKfRIAM4/QVKaesIIT7m/UVjTj5GYhRSQYwfVdpo=
 github.com/ebitengine/purego v0.5.0/go.mod h1:ah1In8AOtksoNK6yk5z1HTJeUkC1Ez4Wk2idgGslMwQ=
-github.com/gobs/matrix v0.0.8 h1:iKi7C7B/EmGXHIeYVbnOMznJL3JdhITMzXHFk25sDhc=
-github.com/gobs/matrix v0.0.8/go.mod h1:uFEMX0Yc/yurgS9zQ8rIH+81fF+SAkd0MpcYojCB8hs=
-github.com/hajimehoshi/ebiten/v2 v2.6.0 h1:nh09FUhjNGFVcUUPsx6oTMbD1pHerNvTKPE+494y3cU=
-github.com/hajimehoshi/ebiten/v2 v2.6.0/go.mod h1:TZtorL713an00UW4LyvMeKD8uXWnuIuCPtlH11b0pgI=
+github.com/gobs/matrix v0.0.9 h1:Po0BrY69kdthy6DL0Q0adDMgRwDVl6RNNLeIlYbD/8Y=
+github.com/gobs/matrix v0.0.9/go.mod h1:uFEMX0Yc/yurgS9zQ8rIH+81fF+SAkd0MpcYojCB8hs=
+github.com/hajimehoshi/ebiten/v2 v2.6.3 h1:xJ5klESxhflZbPUx3GdIPoITzgPgamsyv8aZCVguXGI=
+github.com/hajimehoshi/ebiten/v2 v2.6.3/go.mod h1:TZtorL713an00UW4LyvMeKD8uXWnuIuCPtlH11b0pgI=
 github.com/jezek/xgb v1.1.0 h1:wnpxJzP1+rkbGclEkmwpVFQWpuE2PUGNUzP8SbfFobk=
 github.com/jezek/xgb v1.1.0/go.mod h1:nrhwO0FX/enq75I7Y7G8iN1ubpSGZEiA3v9e9GyRFlk=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
