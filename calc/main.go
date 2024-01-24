@@ -161,7 +161,7 @@ func (g *Game) drawDisplay(screen *ebiten.Image) {
 		d, _ = strconv.ParseFloat(g.val, 64)
 	}
 
-	v := strconv.FormatFloat(d, 'g', -1, 64)
+	v := strconv.FormatFloat(d, 'f', -1, 64)
 	if strings.HasSuffix(g.val, ".") {
 		v += "."
 	}
