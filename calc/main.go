@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"image"
 	"image/png"
 	"io"
@@ -166,6 +167,8 @@ func (g *Game) drawDisplay(screen *ebiten.Image) {
 		v += "."
 	}
 
+	v = fmt.Sprintf("% 13v", v)
+
 	for _, c := range v {
 		if c == '.' {
 			c = 10
@@ -173,7 +176,11 @@ func (g *Game) drawDisplay(screen *ebiten.Image) {
 			c -= '0'
 		}
 
-		screen.DrawImage(g.digits[c], &drawOp)
+		// c < 0 should be " "
+		if c >= 0 {
+			screen.DrawImage(g.digits[c], &drawOp)
+		}
+
 		drawOp.GeoM.Translate(float64(dim.Dx()*g.scale), 0)
 	}
 }
