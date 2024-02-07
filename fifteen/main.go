@@ -183,5 +183,7 @@ func main() {
 	ebiten.SetVsyncEnabled(false)
 	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(g.Init(ww, wh))
-	ebiten.RunGame(g)
+	if err := ebiten.RunGame(g); err != nil {
+            log.Println(err)
+        }
 }
