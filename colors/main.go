@@ -18,15 +18,10 @@ const (
 	vcount = 25
 	border = 4
 
-	nmatch  = 3
-	nrefill = 5
-
-	visited = -1
-	empty   = -2
-	bg      = -3
-	high    = -4
-
 	title = "Colors"
+
+	bg      = -2
+	visited = -1
 
 	cRed    = 0
 	cGreen  = 1
@@ -36,7 +31,7 @@ const (
 )
 
 var (
-	bgColor = color.NRGBA{80, 80, 80, 255}
+	bgColor = color.NRGBA{120, 120, 120, 255}
 
 	colors = []color.NRGBA{
 		{255, 0, 0, 255},   // red
