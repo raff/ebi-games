@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image/color"
 	"math/rand"
@@ -14,8 +15,6 @@ import (
 )
 
 const (
-	hcount = 25
-	vcount = 25
 	border = 4
 
 	title = "Colors"
@@ -63,12 +62,21 @@ var (
 
 	gow = 22
 	goh = 13
+
+	wsize = gow + 2
 )
 
 func main() {
+	side := flag.Int("size", wsize, "window size")
+	flag.Parse()
+
+	if *side < wsize {
+		*side = wsize
+	}
+
 	rand.Seed(time.Now().Unix())
 
-	g := &Game{}
+	g := &Game{side: *side}
 
 	ebiten.SetWindowTitle(title)
 	ebiten.SetVsyncEnabled(false)
@@ -88,8 +96,9 @@ type Game struct {
 	ww, wh int // window width, height
 	tw, th int // game tile width, height
 
-	score int
-	size  int
+	turn int
+	side int
+	size int
 
 	canvas *ebiten.Image // image buffer
 	redraw bool          // content changed
@@ -97,23 +106,23 @@ type Game struct {
 
 func (g *Game) Init(w, h int) (int, int) {
 	if w > 0 && h > 0 {
-		g.ww, g.wh = w/2, h/2
+		g.ww, g.wh = w*2/3, h*2/3
 		if g.ww < g.wh {
 			g.wh = g.ww
 		} else {
 			g.ww = g.wh
 		}
 
-		g.tw = g.ww / hcount
-		g.th = g.wh / vcount
+		g.tw = g.ww / g.side
+		g.th = g.wh / g.side
 
-		g.ww = (g.tw * hcount) + border
-		g.wh = (g.th * vcount) + border
+		g.ww = (g.tw * g.side) + border
+		g.wh = (g.th * g.side) + border
 
 		g.canvas = ebiten.NewImage(g.ww, g.wh)
 		g.canvas.Fill(bgColor)
 
-		g.blocks = matrix.New[int](hcount, vcount, false)
+		g.blocks = matrix.New[int](g.side, g.side, false)
 		g.ccount = make([]int, ncolors)
 		g.size = len(g.blocks.Slice())
 	}
@@ -124,15 +133,15 @@ func (g *Game) Init(w, h int) (int, int) {
 
 	g.blocks.Fill(bg)
 
-	for y := 0; y < vcount; y++ {
-		for x := 0; x < hcount; x++ {
+	for y := 0; y < g.side; y++ {
+		for x := 0; x < g.side; x++ {
 			c := rand.Intn(ncolors)
 			g.blocks.Set(x, y, c)
 			g.ccount[c]++
 		}
 	}
 
-	g.score = 0
+	g.turn = 0
 	g.redraw = true
 
 	return g.ww, g.wh
@@ -170,7 +179,7 @@ func (g *Game) Print() {
 }
 
 func (g *Game) Score(n int) string {
-	return fmt.Sprintf("turn %v: %v/%v ", g.score, n, g.size)
+	return fmt.Sprintf("turn %v: %v/%v ", g.turn, n, g.size)
 }
 
 func (g *Game) Coords(x, y int) (int, int) {
@@ -207,7 +216,7 @@ func (g *Game) SetColor(c int) {
 		g.End()
 	}
 
-	g.score++
+	g.turn++
 	g.redraw = true
 	ebiten.SetWindowTitle(title + " - " + g.Score(g.ccount[c]))
 }
@@ -266,8 +275,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.canvas.Fill(bgColor)
 
-	for y := 0; y < vcount; y++ {
-		for x := 0; x < hcount; x++ {
+	for y := 0; y < g.side; y++ {
+		for x := 0; x < g.side; x++ {
 			color := bgColor
 
 			if ci := g.blocks.Get(x, y); ci >= 0 {
