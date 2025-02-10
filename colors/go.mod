@@ -1,4 +1,4 @@
-module github.com/raff/ebi-games/collapse
+module github.com/raff/ebi-games/colors
 
 go 1.20
 
