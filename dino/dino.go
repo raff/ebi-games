@@ -25,16 +25,19 @@ const (
 
 var (
 	//go:embed assets/ground.png
-	groundImage []byte
+	groundImage []byte // ground image
 
 	//go:embed assets/dino.png
-	dinoImage []byte
+	dinoImage []byte // baseline dino image
+
+	//go:embed assets/dino1.png
+	dino1Image []byte // dino image with eye closed
 
 	//go:embed assets/dino2.png
-	dino2Image []byte
+	dino2Image []byte // walking dino image step 1
 
 	//go:embed assets/dino3.png
-	dino3Image []byte
+	dino3Image []byte // walking dino image step 2
 
 	//go:embed assets/cactus.png
 	cactusImage []byte
@@ -58,6 +61,7 @@ type Game struct {
 	obstacles []*Sprite
 	score     int
 	state     State
+	frames    int // Frame counter to control the animation speed
 }
 
 type Sprite struct {
@@ -83,12 +87,14 @@ func (g *Game) fix(y float64) float64 {
 }
 
 func (g *Game) Update() error {
+	g.frames++
+
 	if ebiten.IsKeyPressed(ebiten.KeyQ) {
 		return ebiten.Termination
 	}
 
 	if g.state == GameOver {
-		if ebiten.IsKeyPressed(ebiten.KeySpace) {
+		if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsKeyPressed(ebiten.KeyEnter) || ebiten.IsKeyPressed(ebiten.KeyR) {
 			g.reset()
 		}
 		return nil
@@ -103,6 +109,10 @@ func (g *Game) Update() error {
 	}
 
 	if g.state == Idle {
+		if g.frames%10 == 0 {
+			g.dino.spi = (g.dino.spi + 1) % 2 // cycle through 0 and 1
+		}
+
 		return nil
 	}
 
@@ -116,7 +126,7 @@ func (g *Game) Update() error {
 	}
 
 	if !g.dino.jumping {
-		g.dino.spi = 1 + (g.score/4)%2
+		g.dino.spi = 2 + (g.frames/4)%2
 	}
 
 	// Update obstacles
@@ -189,6 +199,7 @@ func (g *Game) reset() {
 		dino := loadImage(dinoImage)
 
 		g.dino.sprites = append(g.dino.sprites, dino.sprite)
+		g.dino.sprites = append(g.dino.sprites, loadImage(dino1Image).sprite)
 		g.dino.sprites = append(g.dino.sprites, loadImage(dino2Image).sprite)
 		g.dino.sprites = append(g.dino.sprites, loadImage(dino3Image).sprite)
 		g.dino.sy = dino.h
